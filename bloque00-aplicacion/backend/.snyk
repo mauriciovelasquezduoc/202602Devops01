@@ -1,0 +1,58 @@
+# Snyk policy file — ep03-app (Gradle)
+# Documentación: https://docs.snyk.io/snyk-cli/test-for-vulnerabilities/the-.snyk-file
+
+version: v1.25.0
+
+ignore:
+  # ── Dependencias de BUILD solamente (OpenRewrite, PMD) ──────────────────
+  # Estas dependencias NO van a producción — solo se usan en tiempo de build.
+  # No representan riesgo en runtime.
+
+  # jackson-core via rewrite-migrate-java (build-time only)
+  SNYK-JAVA-COMFASTERXMLJACKSONCORE-15365924:
+    - '*':
+        reason: >
+          jackson-core es dependencia transitiva de rewrite-migrate-java (build tool).
+          No se incluye en el artefacto de producción.
+        expires: '2026-12-31T00:00:00.000Z'
+
+  SNYK-JAVA-COMFASTERXMLJACKSONCORE-15907551:
+    - '*':
+        reason: >
+          jackson-core es dependencia transitiva de rewrite-migrate-java (build tool).
+          No se incluye en el artefacto de producción.
+        expires: '2026-12-31T00:00:00.000Z'
+
+  # commons-lang3 via PMD y OpenRewrite (build-time only)
+  SNYK-JAVA-ORGAPACHECOMMONS-10734078:
+    - '*':
+        reason: >
+          commons-lang3 es dependencia transitiva de PMD y OpenRewrite (build tools).
+          No se incluye en el artefacto de producción.
+        expires: '2026-12-31T00:00:00.000Z'
+
+  # httpcore5 via PMD → Saxon-HE → xmlresolver (build-time only)
+  SNYK-JAVA-ORGAPACHEHTTPCOMPONENTSCORE5-15857052:
+    - '*':
+        reason: >
+          httpcore5-h2 es dependencia transitiva de PMD (build tool).
+          No se incluye en el artefacto de producción.
+        expires: '2026-12-31T00:00:00.000Z'
+
+  # commons-beanutils via spring-cloud-contract (test scope only)
+  SNYK-JAVA-COMMONSBEANUTILS-10259368:
+    - '*':
+        reason: >
+          commons-beanutils es dependencia transitiva de spring-cloud-contract-verifier
+          con scope test. No se incluye en el artefacto de producción.
+        expires: '2026-12-31T00:00:00.000Z'
+
+  # assertj via spring-boot-starter-test (test scope only)
+  SNYK-JAVA-ORGASSERTJ-15102413:
+    - '*':
+        reason: >
+          assertj-core es dependencia de test scope únicamente.
+          No se incluye en el artefacto de producción.
+        expires: '2026-12-31T00:00:00.000Z'
+
+patch: {}

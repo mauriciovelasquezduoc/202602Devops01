@@ -1,0 +1,27 @@
+# Dependencias (se instalan dentro del build)
+node_modules/
+
+# Build output
+dist/
+
+# Tests y cobertura
+coverage/
+
+# IDE
+.vscode/
+.idea/
+
+# Docker
+docker-compose.yml
+
+# Git
+.git/
+.gitignore
+
+# Secretos
+.env
+*.env
+
+# Documentacion
+*.md
+image/

@@ -1,0 +1,21 @@
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+  # ── PostgreSQL local (dev) ────────────────────────────────────────────────
+  datasource:
+    url: jdbc:postgresql://db:5432/ep03
+    driverClassName: org.postgresql.Driver
+    username: ep03_user
+    password: ep03_pass
+
+  jpa:
+    hibernate:
+      ddl-auto: update        # crea/actualiza tablas automáticamente en dev
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: true
+
+  # CORS permisivo en desarrollo
+cors:
+  allowed-origins: "http://localhost:3000,http://localhost:5173"

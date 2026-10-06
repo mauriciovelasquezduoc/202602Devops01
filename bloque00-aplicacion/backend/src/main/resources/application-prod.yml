@@ -1,0 +1,21 @@
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  # ── PostgreSQL producción (AWS RDS / EC2 separado) ────────────────────────
+  # Las variables de entorno se inyectan en el contenedor o en ECS task definition
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://db:5432/ep03}
+    driverClassName: org.postgresql.Driver
+    username: ${DB_USERNAME:ep03_user}
+    password: ${DB_PASSWORD:ep03_pass}
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: false
+
+cors:
+  allowed-origins: ${CORS_ORIGINS:http://localhost:3000}

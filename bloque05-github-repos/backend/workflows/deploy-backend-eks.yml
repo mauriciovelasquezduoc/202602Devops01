@@ -1,0 +1,445 @@
+name: CI/CD Backend - Calidad, Seguridad, ECR, Deploy EKS
+
+# Pipeline unificado: fusiona la calidad de calidad-codigo.yml con el deploy a EKS.
+#   Calidad   : OpenRewrite - Spotless - PMD - JUnit + JaCoCo - Contract - Cucumber
+#   Seguridad : SonarCloud - Snyk
+#   Docker    : valida que la imagen se construya
+#   Entrega   : Versioning (v1.x.0) - Build & Push ECR - Deploy EKS
+#
+# Nota: el proyecto real usa Gradle (no Maven), por lo que las verificaciones se
+# ejecutan con ./gradlew. Equivalencias con calidad-codigo.yml:
+#   Spotless  <-> spotless:check
+#   PMD       <-> pmd:check           (pmdMain + pmdTest)
+#   JaCoCo    <-> verify              (check + jacocoTestReport)
+#   formato   <-> OpenRewrite dry-run (rewriteDryRun)
+#
+# Secrets necesarios (Settings > Secrets and variables > Actions):
+#   SONAR_TOKEN, SNYK_TOKEN
+#   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN, AWS_REGION
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPO_BACKEND: ep03-backend
+  K8S_NAMESPACE: ep03
+  DEPLOYMENT_NAME: ep03-backend
+  SONAR_ORGANIZATION: mauriciovelasquezduoc
+  SONAR_PROJECT_KEY: mauriciovelasquezduoc_202601_ep03_backend
+
+permissions:
+  contents: write
+
+jobs:
+  # ============================================================
+  # JOB 1: CODE QUALITY - OpenRewrite + Spotless + PMD
+  # ============================================================
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout codigo
+        uses: actions/checkout@v4
+
+      - name: Configurar JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Dar permisos al gradlew
+        run: chmod +x gradlew
+
+      - name: OpenRewrite dry-run
+        run: ./gradlew rewriteDryRun -Dnet.bytebuddy.experimental=true
+
+      - name: Spotless check
+        run: ./gradlew spotlessCheck
+
+      - name: PMD main y test
+        run: ./gradlew pmdMain pmdTest
+
+      - name: Publicar reporte PMD
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pmd-report
+          path: build/reports/pmd/
+          retention-days: 7
+
+  # ============================================================
+  # JOB 2: BUILD & TEST - compila, testea y verifica cobertura
+  # ============================================================
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    needs: code-quality
+    steps:
+      - name: Checkout codigo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configurar JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Dar permisos al gradlew
+        run: chmod +x gradlew
+
+      - name: Compilar, testear y generar cobertura
+        run: ./gradlew clean check jacocoTestReport -Dnet.bytebuddy.experimental=true
+
+      - name: Publicar resultados de tests
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: build/test-results/test/
+          retention-days: 7
+
+      - name: Publicar reporte JaCoCo
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-coverage-report
+          path: |
+            build/reports/jacoco/test/html/
+            build/reports/jacoco/test/jacocoTestReport.xml
+          retention-days: 7
+
+      - name: Publicar reporte Spring Cloud Contract
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: contract-test-report
+          path: build/reports/tests/contractTest/
+          retention-days: 7
+
+      - name: Publicar reporte Cucumber
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cucumber-report
+          path: build/cucumber-reports/
+          retention-days: 7
+
+  # ============================================================
+  # JOB 3: SECURITY - SonarCloud + Snyk
+  # ============================================================
+  security:
+    name: SonarCloud + Snyk
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    steps:
+      - name: Checkout codigo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configurar JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Dar permisos al gradlew
+        run: chmod +x gradlew
+
+      - name: Validar secrets de seguridad
+        run: |
+          set -euo pipefail
+          if [ -z "${SONAR_TOKEN:-}" ]; then
+            echo "ERROR: Falta SONAR_TOKEN en GitHub Secrets"
+            exit 1
+          fi
+          if [ -z "${SNYK_TOKEN:-}" ]; then
+            echo "ERROR: Falta SNYK_TOKEN en GitHub Secrets"
+            exit 1
+          fi
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Descargar reporte JaCoCo
+        uses: actions/download-artifact@v4
+        with:
+          name: jacoco-coverage-report
+          path: build/reports/jacoco/test/
+
+      - name: Compilar para analisis
+        run: ./gradlew clean assemble -x test -Dnet.bytebuddy.experimental=true
+
+      - name: SonarCloud automatic analysis activo
+        run: |
+          echo "SonarCloud ya tiene Automatic Analysis activo para este proyecto."
+          echo "Se omite el task Gradle sonar para evitar el error: Automatic Analysis is enabled."
+          echo "Si quieres que SonarCloud sea gate bloqueante en GitHub Actions, desactiva Automatic Analysis en SonarCloud y vuelve a habilitar ./gradlew sonar en este workflow."
+
+      - name: Instalar Snyk CLI
+        run: npm install -g snyk@latest
+
+      - name: Snyk dependency scan
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          set -euo pipefail
+          snyk test \
+            --file=build.gradle \
+            --severity-threshold=high \
+            --fail-on=all \
+            --configuration-matching='^(compile|runtime|default)$'
+
+      - name: Generar reporte Snyk SARIF
+        if: always()
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          snyk test \
+            --file=build.gradle \
+            --severity-threshold=high \
+            --configuration-matching='^(compile|runtime|default)$' \
+            --sarif-file-output=snyk.sarif || true
+
+      - name: Publicar reporte Snyk
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: snyk-security-report
+          path: snyk.sarif
+          retention-days: 7
+
+  # ============================================================
+  # JOB 4: DOCKER - heredado de calidad-codigo.yml
+  # Valida que la imagen se construya (quality gate de imagen).
+  # ============================================================
+  docker:
+    name: Docker (validacion de imagen)
+    runs-on: ubuntu-latest
+    needs: security
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Construir imagen de runtime
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: runtime
+          push: false
+          tags: ep03-backend:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ============================================================
+  # JOB 5: VERSIONING - calcula v1.x.0 y crea tag git
+  # ============================================================
+  versioning:
+    name: Semantic Version (v1.x.0)
+    runs-on: ubuntu-latest
+    needs: [security, docker]
+    outputs:
+      new_tag: ${{ steps.calc.outputs.new_tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Calcular y crear tag
+        id: calc
+        run: |
+          set -euo pipefail
+          LAST=$(git tag --list 'v1.*' --sort=-v:refname | head -1)
+          if [ -z "$LAST" ]; then
+            NEW="v1.0.0"
+          else
+            MINOR=$(echo "$LAST" | cut -d. -f2)
+            NEW="v1.$((MINOR + 1)).0"
+          fi
+          echo "Ultimo: ${LAST:-ninguno} -> Nuevo: $NEW"
+          echo "new_tag=$NEW" >> "$GITHUB_OUTPUT"
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "$NEW"
+          git push origin "$NEW"
+
+  # ============================================================
+  # JOB 6: BUILD & PUSH ECR - construye y publica la imagen
+  # ============================================================
+  build-push-ecr:
+    name: Build & Push ECR (${{ needs.versioning.outputs.new_tag }})
+    runs-on: ubuntu-latest
+    needs: versioning
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar credenciales AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login a Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Configurar Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build y push con cache
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPO_BACKEND }}:${{ needs.versioning.outputs.new_tag }}
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPO_BACKEND }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Resumen build
+        run: |
+          echo "### Imagen publicada en ECR" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Tag:** \`${{ needs.versioning.outputs.new_tag }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Registry:** \`${{ steps.login-ecr.outputs.registry }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Repositorio:** \`${{ env.ECR_REPO_BACKEND }}\`" >> "$GITHUB_STEP_SUMMARY"
+
+  # ============================================================
+  # JOB 7: DEPLOY A EKS - aplica manifiestos y actualiza imagen
+  # ============================================================
+  deploy:
+    name: Deploy a EKS
+    runs-on: ubuntu-latest
+    needs: [versioning, build-push-ecr]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar credenciales AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login a Amazon ECR
+        id: login-ecr-deploy
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Deducir variables de EKS
+        env:
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+        run: |
+          set -euo pipefail
+          CLUSTER=$(aws eks list-clusters --region "$AWS_REGION" --query 'clusters[0]' --output text)
+          if [ -z "$CLUSTER" ] || [ "$CLUSTER" = "None" ]; then
+            echo "ERROR: No se encontro ningun cluster EKS en la region $AWS_REGION"
+            exit 1
+          fi
+          echo "EKS_CLUSTER_NAME=$CLUSTER" >> "$GITHUB_ENV"
+          echo "  Cluster detectado: $CLUSTER"
+
+      - name: Instalar kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: v1.29.0
+
+      - name: Configurar kubeconfig
+        env:
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+        run: |
+          set -euo pipefail
+          aws eks update-kubeconfig \
+            --region "$AWS_REGION" \
+            --name "$EKS_CLUSTER_NAME"
+          echo "  Contexto: $(kubectl config current-context)"
+
+      - name: Validar acceso al cluster
+        run: |
+          set -euo pipefail
+          kubectl get nodes
+          kubectl get namespace "$K8S_NAMESPACE" 2>/dev/null || true
+
+      - name: Actualizar imagen del deployment
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr-deploy.outputs.registry }}
+          IMAGE_TAG: ${{ needs.versioning.outputs.new_tag }}
+        run: |
+          set -euo pipefail
+          echo "  Actualizando deployment/${DEPLOYMENT_NAME}..."
+          echo "  Usando tag: $IMAGE_TAG"
+          kubectl set image "deployment/${DEPLOYMENT_NAME}" \
+            "backend=$ECR_REGISTRY/${ECR_REPO_BACKEND}:$IMAGE_TAG" \
+            -n "$K8S_NAMESPACE"
+
+      - name: Esperar rollout backend
+        run: |
+          set -euo pipefail
+          echo "  Estado inicial de pods:"
+          kubectl get pods -n "$K8S_NAMESPACE" -l "app=${ECR_REPO_BACKEND}" -o wide || true
+
+          echo "  Esperando a que el rollout termine (max 10 min)..."
+          if ! kubectl rollout status "deployment/${DEPLOYMENT_NAME}" -n "$K8S_NAMESPACE" --timeout=600s; then
+            echo ""
+            echo "==========================================================="
+            echo "  ERROR: El rollout del backend fallo o excedio 10 minutos"
+            echo "==========================================================="
+            echo ""
+            echo "--- Pods ---"
+            kubectl get pods -n "$K8S_NAMESPACE" -l "app=${ECR_REPO_BACKEND}" -o wide || true
+            echo ""
+            echo "--- Describe deployment ---"
+            kubectl describe deployment "$DEPLOYMENT_NAME" -n "$K8S_NAMESPACE" || true
+            echo ""
+            echo "--- Describe pods ---"
+            kubectl describe pod -n "$K8S_NAMESPACE" -l "app=${ECR_REPO_BACKEND}" || true
+            echo ""
+            echo "--- Logs actuales ---"
+            kubectl logs -n "$K8S_NAMESPACE" -l "app=${ECR_REPO_BACKEND}" --tail=120 || true
+            echo ""
+            echo "--- Logs previos ---"
+            kubectl logs -n "$K8S_NAMESPACE" -l "app=${ECR_REPO_BACKEND}" --previous --tail=120 || true
+            exit 1
+          fi
+
+          echo "  Rollout completado"
+
+      - name: Verificar estado final
+        run: |
+          set -euo pipefail
+          echo ""
+          echo "========================================="
+          echo " RESUMEN DEL DEPLOY"
+          echo "========================================="
+          echo ""
+          echo "--- Pods ---"
+          kubectl get pods -n "$K8S_NAMESPACE" -l "app=${ECR_REPO_BACKEND}" -o wide
+          echo ""
+          echo "--- Services ---"
+          kubectl get svc -n "$K8S_NAMESPACE" -l "app=${ECR_REPO_BACKEND}"
+          echo ""
+          echo "--- HPA ---"
+          kubectl get hpa ep03-backend-hpa -n "$K8S_NAMESPACE" 2>/dev/null || true
+
+      - name: Resumen deploy
+        if: success()
+        run: |
+          echo "### Deploy completado exitosamente" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Cluster:** \`${{ env.EKS_CLUSTER_NAME }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Deployment:** \`${{ env.DEPLOYMENT_NAME }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Namespace:** \`${{ env.K8S_NAMESPACE }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Version imagen:** \`${{ env.ECR_REPO_BACKEND }}:${{ needs.versioning.outputs.new_tag }}\`" >> "$GITHUB_STEP_SUMMARY"

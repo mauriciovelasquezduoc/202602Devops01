@@ -1,0 +1,231 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.5.3'
+    id 'io.spring.dependency-management' version '1.1.7'
+    id 'jacoco'
+    id "org.sonarqube" version "7.1.0.6387"
+    id 'info.solidsoft.pitest' version '1.19.0-rc.2'
+    id 'org.springframework.cloud.contract' version '4.2.1'
+    // ── Calidad de código ─────────────────────────────────────────────────
+    id 'org.openrewrite.rewrite' version '7.32.0'   // arregla código automáticamente
+    id 'com.diffplug.spotless' version '7.0.4'       // limpia formato
+    id 'pmd'                                          // valida reglas estáticas
+}
+
+group = 'cl.duocuc.ep03'
+version = '1.0.0'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories { mavenCentral() }
+
+// Forzar versiones seguras de dependencias con CVEs conocidos
+// Spring Boot 3.5.3 trae Tomcat 10.1.42 — forzamos 10.1.54 (fix CVEs)
+ext['tomcat.version'] = '10.1.54'
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.projectlombok:lombok'
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.17'
+
+    // PostgreSQL — driver de producción y desarrollo
+    runtimeOnly 'org.postgresql:postgresql'
+    // H2 solo para tests (no en runtime de la app)
+    testRuntimeOnly 'com.h2database:h2'
+
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
+
+    // Cucumber - tests de aceptación
+    testImplementation 'io.cucumber:cucumber-java:7.20.1'
+    testImplementation 'io.cucumber:cucumber-spring:7.20.1'
+    testImplementation 'io.cucumber:cucumber-junit-platform-engine:7.20.1'
+    testImplementation 'org.junit.platform:junit-platform-suite:1.11.4'
+    testRuntimeOnly 'org.junit.platform:junit-platform-suite-engine:1.11.4'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.11.4'
+
+    // Spring Cloud Contract - tests de contrato
+    testImplementation 'org.springframework.cloud:spring-cloud-starter-contract-verifier:4.2.3'
+}
+
+test {
+    useJUnitPlatform()
+    jvmArgs '-Dnet.bytebuddy.experimental=true'
+    finalizedBy jacocoTestReport
+}
+
+// El task contractTest generado por Spring Cloud Contract también necesita
+// el flag de Byte Buddy para funcionar con Java 21+
+tasks.withType(Test).configureEach {
+    jvmArgs '-Dnet.bytebuddy.experimental=true'
+}
+
+jacoco {
+    toolVersion = "0.8.13"
+}
+
+jacocoTestReport {
+    dependsOn test
+    reports {
+        xml.required = true
+        html.required = true
+    }
+}
+
+jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            limit {
+                counter = 'INSTRUCTION'
+                value   = 'COVEREDRATIO'
+                minimum = 0.80
+            }
+        }
+        rule {
+            limit {
+                counter = 'BRANCH'
+                value   = 'COVEREDRATIO'
+                minimum = 0.80
+            }
+        }
+    }
+}
+
+// Orden: test → jacocoTestReport → jacocoTestCoverageVerification
+jacocoTestCoverageVerification.dependsOn jacocoTestReport
+check.dependsOn jacocoTestCoverageVerification
+
+sonar {
+    properties {
+        // ProjectKey = {github_owner}_{repo_name} — debe coincidir con SonarCloud
+        property "sonar.projectKey", "mauriciovelasquezduoc_202601_DOY0101-003D_sprintboot_gradle"
+        property "sonar.organization", "mauriciovelasquezduoc"
+        property "sonar.host.url", "https://sonarcloud.io"
+        property "sonar.coverage.jacoco.xmlReportPaths", "${project.buildDir}/reports/jacoco/test/jacocoTestReport.xml"
+        // Excluir directorios que no son código fuente
+        property "sonar.exclusions", ".github/**,k8s/**,docs/**"
+        property "sonar.sources", "src/main/java"
+        property "sonar.tests", "src/test/java"
+        // Rama de referencia para calcular "nuevo código" (Sonar way usa métricas new_*)
+        property "sonar.newCode.referenceBranch", "main"
+        property "sonar.qualitygate.wait", "false"
+        property "sonar.qualitygate.timeout", "300"
+    }
+}
+
+pitest {
+    targetClasses         = ['cl.duocuc.ep03.*']
+    targetTests           = ['cl.duocuc.ep03.*']
+    junit5PluginVersion   = '1.2.1'
+    mutationThreshold     = 80
+    coverageThreshold     = 80
+    outputFormats         = ['HTML', 'XML']
+    timestampedReports    = false
+    jvmArgs               = ['-Dnet.bytebuddy.experimental=true']
+    threads               = 2
+}
+
+contracts {
+    testFramework         = org.springframework.cloud.contract.verifier.config.TestFramework.JUNIT5
+    baseClassForTests     = 'cl.duocuc.ep03.contract.AlumnoContractBase'
+    contractsDslDir       = file('src/test/resources/contracts')
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OPENREWRITE — Aplica recetas de refactoring automático
+// Uso local:  ./gradlew rewriteRun   (aplica cambios)
+//             ./gradlew rewriteDryRun (solo muestra qué cambiaría)
+// ─────────────────────────────────────────────────────────────────────────────
+rewrite {
+    // Recetas activas: modernización Java + análisis estático
+    // Nota: UpgradeSpringBoot_3_4 se excluye — el proyecto ya está en 3.4.5
+    // y la receta genera código incorrecto en SecurityConfig (csrf::disable)
+    activeRecipe(
+        'org.openrewrite.java.migrate.UpgradeToJava21',
+        'org.openrewrite.staticanalysis.CommonStaticAnalysis',
+        'org.openrewrite.staticanalysis.UnnecessaryThrows',
+        'org.openrewrite.staticanalysis.SimplifyBooleanExpression',
+        'org.openrewrite.java.RemoveUnusedImports'
+    )
+    // Excluir código generado por Spring Cloud Contract
+    exclusion(
+        'build/generated-test-sources/**',
+        'build/generated-sources/**'
+    )
+}
+
+dependencies {
+    // Recetas OpenRewrite (solo en tiempo de build, no en runtime)
+    rewrite 'org.openrewrite.recipe:rewrite-migrate-java:3.31.0'
+    rewrite 'org.openrewrite.recipe:rewrite-spring:6.13.0'
+    rewrite 'org.openrewrite.recipe:rewrite-static-analysis:2.15.0'
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SPOTLESS — Formatea y limpia el código fuente
+// Uso local:  ./gradlew spotlessApply  (aplica formato)
+//             ./gradlew spotlessCheck  (solo verifica, falla si hay diferencias)
+// ─────────────────────────────────────────────────────────────────────────────
+spotless {
+    java {
+        // Paleta de reglas sin dependencia en APIs internas del JDK
+        // (google-java-format requiere --add-exports en Java 21+, se evita aquí)
+        importOrder('java', 'javax', 'org', 'com', '')   // orden de imports
+        removeUnusedImports()                             // elimina imports sin usar
+        trimTrailingWhitespace()                          // sin espacios al final
+        leadingTabsToSpaces(4)                            // indentación 4 espacios
+        endWithNewline()                                  // salto de línea al final
+        // Excluir código generado
+        targetExclude('build/generated-test-sources/**', 'build/generated-sources/**')
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PMD — Análisis estático de reglas de calidad
+// Uso local:  ./gradlew pmdMain   (analiza código principal)
+//             ./gradlew pmdTest   (analiza código de tests)
+// Los reportes quedan en: build/reports/pmd/
+// ─────────────────────────────────────────────────────────────────────────────
+pmd {
+    toolVersion = '7.16.0'
+    // Falla el build si PMD encuentra violaciones
+    ignoreFailures = false
+    // Conjuntos de reglas activos
+    ruleSets = []   // limpiamos los defaults para usar solo los nuestros
+    ruleSetFiles = files('config/pmd/ruleset.xml')
+    // Genera reporte HTML y XML
+    reportsDir = file("${buildDir}/reports/pmd")
+}
+
+tasks.withType(Pmd).configureEach {
+    reports {
+        xml.required = true
+        html.required = true
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TASK: codeQuality — Ejecuta los 3 checks en orden antes de compilar
+// Orden: spotlessCheck → pmdMain → rewriteDryRun
+// En CI se usa este task; localmente se puede usar rewriteRun + spotlessApply
+// ─────────────────────────────────────────────────────────────────────────────
+tasks.register('codeQuality') {
+    group = 'verification'
+    description = 'Ejecuta Spotless, PMD y OpenRewrite (dry-run) antes de compilar'
+    dependsOn 'spotlessCheck', 'pmdMain', 'rewriteDryRun'
+}
+
+// Asegurar que codeQuality corra antes de compilar en el ciclo normal
+// Nota: spotlessCheck se ejecuta como parte del task codeQuality,
+// pero NO se encadena a compileJava para no bloquear rewriteRun ni bootRun locales.
+// En CI el job code-quality corre spotlessCheck explícitamente antes de build-and-test.

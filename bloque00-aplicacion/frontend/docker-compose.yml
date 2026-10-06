@@ -1,0 +1,20 @@
+# docker-compose standalone del frontend
+# Ejecutar tercero (despues de backend y DB): docker compose up -d
+services:
+  ep03-frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ep03-frontend:latest
+    container_name: ep03-frontend
+    environment:
+      BACKEND_HOST: ep03-backend
+    ports:
+      - "80:80"
+    restart: unless-stopped
+    networks:
+      - ep03-network
+
+networks:
+  ep03-network:
+    external: true

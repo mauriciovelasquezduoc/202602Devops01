@@ -1,0 +1,13 @@
+# Datos persistentes
+pgdata/
+
+# Docker
+docker-compose.yml
+
+# Git
+.git/
+.gitignore
+
+# Documentacion
+*.md
+image/

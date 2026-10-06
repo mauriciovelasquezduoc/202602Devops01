@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ruleset name="Alumnos App PMD Rules"
+         xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0
+             https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+
+    <description>
+        Reglas PMD 7 para el proyecto ep03-app (main + test).
+        Excluye reglas ruidosas o incompatibles con Spring Boot / Cucumber / JUnit 5.
+    </description>
+
+    <!-- ── Buenas prácticas ─────────────────────────────────────────────── -->
+    <rule ref="category/java/bestpractices.xml">
+        <exclude name="GuardLogStatement"/>
+        <!-- Tests de integración Spring necesitan asserts múltiples por escenario -->
+        <exclude name="UnitTestAssertionsShouldIncludeMessage"/>
+        <exclude name="UnitTestContainsTooManyAsserts"/>
+        <!-- Cucumber steps no son tests JUnit directos -->
+        <exclude name="UnitTestShouldIncludeAssert"/>
+        <!-- JUnit 5 con Spring Boot Test usa clases públicas por convención -->
+        <exclude name="JUnit5TestShouldBePackagePrivate"/>
+        <!-- AlumnoContractBase es clase base de Spring Cloud Contract, no utility -->
+        <exclude name="AbstractClassWithoutAbstractMethod"/>
+        <!-- LooseCoupling: LinkedHashMap en Cucumber steps es intencional para orden -->
+        <exclude name="LooseCoupling"/>
+    </rule>
+
+    <!-- ── Código con errores potenciales ───────────────────────────────── -->
+    <rule ref="category/java/errorprone.xml">
+        <exclude name="AvoidLiteralsInIfCondition"/>
+        <!-- NullAssignment: patrón válido en tests para verificar nulos -->
+        <exclude name="NullAssignment"/>
+        <!-- CucumberRunnerTest usa @Suite de JUnit Platform, no métodos @Test -->
+        <exclude name="TestClassWithoutTestCases"/>
+        <!-- Literales repetidos en tests son normales (JSON, URLs, nombres) -->
+        <exclude name="AvoidDuplicateLiterals"/>
+    </rule>
+
+    <!-- ── Rendimiento ──────────────────────────────────────────────────── -->
+    <rule ref="category/java/performance.xml"/>
+
+    <!-- ── Seguridad ────────────────────────────────────────────────────── -->
+    <rule ref="category/java/security.xml"/>
+
+    <!-- ── Diseño ───────────────────────────────────────────────────────── -->
+    <rule ref="category/java/design.xml">
+        <exclude name="LawOfDemeter"/>
+        <exclude name="LoosePackageCoupling"/>
+        <!-- DemoApplication es clase Spring Boot, no utility class -->
+        <exclude name="UseUtilityClass"/>
+        <!-- throws Exception requerido por la API de Spring Security -->
+        <exclude name="SignatureDeclareThrowsException"/>
+        <!-- AlumnoContractBase es abstracta por diseño de Spring Cloud Contract -->
+        <exclude name="AbstractClassWithoutAbstractMethod"/>
+        <!-- Tests de integración pueden tener muchos métodos -->
+        <exclude name="TooManyMethods"/>
+    </rule>
+
+    <!-- ── Estilo de código ─────────────────────────────────────────────── -->
+    <rule ref="category/java/codestyle.xml">
+        <exclude name="AtLeastOneConstructor"/>
+        <exclude name="OnlyOneReturn"/>
+        <exclude name="CommentDefaultAccessModifier"/>
+        <exclude name="LongVariable"/>
+        <exclude name="ShortVariable"/>
+        <exclude name="ShortClassName"/>
+        <exclude name="ShortMethodName"/>
+        <!-- final en parámetros/variables: ruido sin valor real -->
+        <exclude name="MethodArgumentCouldBeFinal"/>
+        <exclude name="LocalVariableCouldBeFinal"/>
+        <exclude name="FormalParameterNamingConventions"/>
+        <!-- Nombres de métodos de test usan snake_case o descripciones largas -->
+        <exclude name="MethodNamingConventions"/>
+        <!-- Tests de Cucumber/Spring usan static imports extensivamente -->
+        <exclude name="TooManyStaticImports"/>
+        <!-- UnnecessaryImport: falsos positivos con anotaciones de Spring -->
+        <exclude name="UnnecessaryImport"/>
+        <!-- UnnecessaryFullyQualifiedName: Arrays.stream en controller -->
+        <exclude name="UnnecessaryFullyQualifiedName"/>
+        <!-- LinguisticNaming: métodos toDomain_*/toEntity_* son nombres de test válidos -->
+        <exclude name="LinguisticNaming"/>
+    </rule>
+
+    <!-- ── Multihilo ────────────────────────────────────────────────────── -->
+    <rule ref="category/java/multithreading.xml"/>
+
+    <!-- ── Documentación ────────────────────────────────────────────────── -->
+    <!-- Excluida completamente: el proyecto usa Swagger/OpenAPI para documentación -->
+
+</ruleset>

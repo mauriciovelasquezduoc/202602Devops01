@@ -1,0 +1,143 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: Amazon EKS Multi-AZ Cluster for AWS Academy
+
+Parameters:
+
+  VPCId:
+    Type: AWS::EC2::VPC::Id
+
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet::Id
+
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet::Id
+
+  PrivateAppSubnetA:
+    Type: AWS::EC2::Subnet::Id
+
+  PrivateAppSubnetB:
+    Type: AWS::EC2::Subnet::Id
+
+  EksClusterRoleArn:
+    Type: String
+
+  EksNodeRoleArn:
+    Type: String
+
+Resources:
+
+  EksClusterSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: EKS Cluster Security Group
+      VpcId: !Ref VPCId
+
+      SecurityGroupIngress:
+        - IpProtocol: -1
+          CidrIp: 10.0.0.0/16
+
+      Tags:
+        - Key: Name
+          Value: eks-cluster-sg
+
+  EksCluster:
+    Type: AWS::EKS::Cluster
+    Properties:
+
+      Name: laboratorio-ep03-eks
+
+      Version: "1.33"
+
+      RoleArn: !Ref EksClusterRoleArn
+
+      ResourcesVpcConfig:
+
+        EndpointPublicAccess: true
+        EndpointPrivateAccess: true
+
+        SecurityGroupIds:
+          - !Ref EksClusterSecurityGroup
+
+        SubnetIds:
+          - !Ref PublicSubnetA
+          - !Ref PublicSubnetB
+          - !Ref PrivateAppSubnetA
+          - !Ref PrivateAppSubnetB
+
+      Logging:
+        ClusterLogging:
+
+          EnabledTypes:
+            - Type: api
+            - Type: audit
+            - Type: authenticator
+            - Type: controllerManager
+            - Type: scheduler
+
+  VpcCniAddon:
+    Type: AWS::EKS::Addon
+    DependsOn: EksCluster
+
+    Properties:
+      ClusterName: !Ref EksCluster
+      AddonName: vpc-cni
+
+  CoreDnsAddon:
+    Type: AWS::EKS::Addon
+    DependsOn: EksCluster
+
+    Properties:
+      ClusterName: !Ref EksCluster
+      AddonName: coredns
+
+  KubeProxyAddon:
+    Type: AWS::EKS::Addon
+    DependsOn: EksCluster
+
+    Properties:
+      ClusterName: !Ref EksCluster
+      AddonName: kube-proxy
+
+  MetricsServerAddon:
+    Type: AWS::EKS::Addon
+    DependsOn: EksCluster
+
+    Properties:
+      ClusterName: !Ref EksCluster
+      AddonName: metrics-server
+
+  EksNodeGroup:
+    Type: AWS::EKS::Nodegroup
+    DependsOn: EksCluster
+
+    Properties:
+
+      ClusterName: !Ref EksCluster
+
+      NodegroupName: laboratorio-ep03-nodegroup
+
+      NodeRole: !Ref EksNodeRoleArn
+
+      AmiType: AL2023_x86_64_STANDARD
+
+      CapacityType: SPOT
+
+      InstanceTypes:
+        - t3.large
+
+      DiskSize: 20
+
+      Subnets:
+        - !Ref PrivateAppSubnetA
+        - !Ref PrivateAppSubnetB
+
+      ScalingConfig:
+        DesiredSize: 1
+        MinSize: 1
+        MaxSize: 3
+
+Outputs:
+
+  ClusterName:
+    Value: !Ref EksCluster

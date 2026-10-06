@@ -1,0 +1,29 @@
+# Build outputs
+build/
+.gradle/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Tests y reportes
+coverage/
+
+# Docker
+docker-compose.yml
+
+# Git
+.git/
+.gitignore
+
+# Datos locales
+pgdata/
+
+# Secretos
+.env
+*.env
+
+# Documentacion
+*.md
+image/

@@ -1,0 +1,33 @@
+# docker-compose standalone del database
+# Ejecutar primero: docker compose up -d
+# IMPORTANTE: Ejecutar primero este para crear la red ep03-network
+services:
+  ep03-db:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ep03-db:latest
+    container_name: ep03-db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ep03
+      POSTGRES_USER: ep03_user
+      POSTGRES_PASSWORD: ep03_pass
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ep03_user -d ep03"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ep03-network
+
+networks:
+  ep03-network:
+    name: ep03-network
+
+volumes:
+  pgdata:
