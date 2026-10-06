@@ -24,11 +24,11 @@ on:
 
 env:
   AWS_REGION: us-east-1
-  ECR_REPO_BACKEND: ep03-backend
-  K8S_NAMESPACE: ep03
-  DEPLOYMENT_NAME: ep03-backend
+  ECR_REPO_BACKEND: ep02-backend
+  K8S_NAMESPACE: ep02
+  DEPLOYMENT_NAME: ep02-backend
   SONAR_ORGANIZATION: mauriciovelasquezduoc
-  SONAR_PROJECT_KEY: mauriciovelasquezduoc_202601_ep03_backend
+  SONAR_PROJECT_KEY: mauriciovelasquezduoc_202601_ep02_backend
 
 permissions:
   contents: write
@@ -238,7 +238,7 @@ jobs:
           context: .
           target: runtime
           push: false
-          tags: ep03-backend:ci
+          tags: ep02-backend:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -433,7 +433,7 @@ jobs:
           kubectl get svc -n "$K8S_NAMESPACE" -l "app=${ECR_REPO_BACKEND}"
           echo ""
           echo "--- HPA ---"
-          kubectl get hpa ep03-backend-hpa -n "$K8S_NAMESPACE" 2>/dev/null || true
+          kubectl get hpa ep02-backend-hpa -n "$K8S_NAMESPACE" 2>/dev/null || true
 
       - name: Resumen deploy
         if: success()

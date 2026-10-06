@@ -1,4 +1,4 @@
-# ep03-db
+# ep02-db
 
 Imagen Docker de PostgreSQL 16 para la capa de datos del sistema **Alumnos**. Incluye inicialización automática del esquema y datos de ejemplo listos para desarrollo.
 
@@ -7,7 +7,7 @@ Imagen Docker de PostgreSQL 16 para la capa de datos del sistema **Alumnos**. In
 ## Contenido
 
 ```
-ep03-db/
+ep02-db/
 ├── Dockerfile          # Imagen basada en postgres:16-alpine
 ├── docker-compose.yml  # Orquestacion local con persistencia
 ├── init.sql            # Esquema y datos de ejemplo (auto-ejecutado)
@@ -46,13 +46,13 @@ Esperar que el estado sea `healthy`:
 
 ```
 NAME            STATUS                   PORTS
-ep03-db   Up X seconds (healthy)   0.0.0.0:5432->5432/tcp
+ep02-db   Up X seconds (healthy)   0.0.0.0:5432->5432/tcp
 ```
 
 ### 3. Conectarse a la base de datos
 
 ```bash
-docker exec -it ep03-db psql -U ep03_user -d ep03
+docker exec -it ep02-db psql -U ep02_user -d ep02
 ```
 
 ### 4. Detener el contenedor
@@ -71,16 +71,16 @@ docker compose down
 
 | Variable            | Valor por defecto | Descripcion              |
 | ------------------- | ----------------- | ------------------------ |
-| `POSTGRES_DB`       | `ep03`         | Nombre de la base de datos |
-| `POSTGRES_USER`     | `ep03_user`    | Usuario de conexion      |
-| `POSTGRES_PASSWORD` | `ep03_pass`    | Contrasena del usuario   |
+| `POSTGRES_DB`       | `ep02`         | Nombre de la base de datos |
+| `POSTGRES_USER`     | `ep02_user`    | Usuario de conexion      |
+| `POSTGRES_PASSWORD` | `ep02_pass`    | Contrasena del usuario   |
 
 Para sobreescribir los valores, edita la seccion `environment` en `docker-compose.yml` o usa un archivo `.env`:
 
 ```env
-POSTGRES_DB=ep03
-POSTGRES_USER=ep03_user
-POSTGRES_PASSWORD=ep03_pass
+POSTGRES_DB=ep02
+POSTGRES_USER=ep02_user
+POSTGRES_PASSWORD=ep02_pass
 ```
 
 ### Puertos
@@ -100,7 +100,7 @@ Los datos se almacenan en el directorio local `./pgdata/` mediante un **bind mou
 - Rebuilds de la imagen
 
 ```
-ep03-db/
+ep02-db/
 └── pgdata/
     └── data/        ← datos de PostgreSQL en tu maquina local
         ├── base/
@@ -126,10 +126,10 @@ docker compose up -d --build
 
 Definido en `init.sql`, se ejecuta automaticamente en el primer arranque cuando `pgdata/` esta vacio.
 
-### Tabla `ep03`
+### Tabla `ep02`
 
 ```sql
-CREATE TABLE IF NOT EXISTS ep03 (
+CREATE TABLE IF NOT EXISTS ep02 (
     id        BIGSERIAL    PRIMARY KEY,
     nombre    VARCHAR(100) NOT NULL,
     apellido  VARCHAR(100) NOT NULL
@@ -164,31 +164,31 @@ El script inserta 8 registros iniciales para desarrollo:
 ### Consultar datos
 
 ```bash
-docker exec -it ep03-db psql -U ep03_user -d ep03 -c "SELECT * FROM ep03;"
+docker exec -it ep02-db psql -U ep02_user -d ep02 -c "SELECT * FROM ep02;"
 ```
 
 ### Ver logs del contenedor
 
 ```bash
-docker compose logs -f ep03-db
+docker compose logs -f ep02-db
 ```
 
 ### Verificar healthcheck
 
 ```bash
-docker inspect --format='{{.State.Health.Status}}' ep03-db
+docker inspect --format='{{.State.Health.Status}}' ep02-db
 ```
 
 ### Backup de la base de datos
 
 ```bash
-docker exec ep03-db pg_dump -U ep03_user ep03 > backup.sql
+docker exec ep02-db pg_dump -U ep02_user ep02 > backup.sql
 ```
 
 ### Restaurar un backup
 
 ```bash
-docker exec -i ep03-db psql -U ep03_user -d ep03 < backup.sql
+docker exec -i ep02-db psql -U ep02_user -d ep02 < backup.sql
 ```
 
 ---
@@ -198,14 +198,14 @@ docker exec -i ep03-db psql -U ep03_user -d ep03 < backup.sql
 | Propiedad   | Valor                  |
 | ----------- | ---------------------- |
 | Base image  | `postgres:16-alpine`   |
-| Imagen ECR  | `ep03-db:latest` |
+| Imagen ECR  | `ep02-db:latest` |
 | Puerto      | `5432`                 |
 | Healthcheck | `pg_isready`           |
 
 ### Construir la imagen manualmente
 
 ```bash
-docker build -t ep03-db:latest .
+docker build -t ep02-db:latest .
 ```
 
 ### Publicar en ECR
@@ -216,8 +216,8 @@ aws ecr get-login-password --region us-east-1 \
   | docker login --username AWS --password-stdin <ECR_REGISTRY>
 
 # Tag y push
-docker tag ep03-db:latest <ECR_REGISTRY>/ep03-db:latest
-docker push <ECR_REGISTRY>/ep03-db:latest
+docker tag ep02-db:latest <ECR_REGISTRY>/ep02-db:latest
+docker push <ECR_REGISTRY>/ep02-db:latest
 ```
 
 ---
@@ -229,11 +229,11 @@ Esta imagen forma parte de la infraestructura de 3 capas del sistema Alumnos:
 ```
 Internet
    |
-EC2-Web  (ep03-frontend:latest)    — Capa Web    — Puerto 80
+EC2-Web  (ep02-frontend:latest)    — Capa Web    — Puerto 80
    |
-EC2-App  (ep03-backend:latest)    — Capa App    — Puerto 8080
+EC2-App  (ep02-backend:latest)    — Capa App    — Puerto 8080
    |
-EC2-Datos (ep03-db:latest) — Capa Datos  — Puerto 5432  <-- este servicio
+EC2-Datos (ep02-db:latest) — Capa Datos  — Puerto 5432  <-- este servicio
 ```
 
 - Solo accesible desde la capa App (SG-Datos permite TCP 5432 unicamente desde SG-App)
@@ -298,8 +298,8 @@ Construye la imagen Docker desde el `Dockerfile` e `init.sql`, y la publica en A
 
 | Tag publicado | Ejemplo | Uso |
 |---|---|---|
-| Version semantica | `ep03-db:v1.4.0` | Rollback, trazabilidad |
-| Latest | `ep03-db:latest` | Despliegue automatico |
+| Version semantica | `ep02-db:v1.4.0` | Rollback, trazabilidad |
+| Latest | `ep02-db:latest` | Despliegue automatico |
 
 ---
 
@@ -308,7 +308,7 @@ Construye la imagen Docker desde el `Dockerfile` e `init.sql`, y la publica en A
 Despliega la nueva imagen en la instancia `EC2-Datos` sin necesidad de acceso SSH directo. La instancia esta en una subnet privada sin acceso a internet — la comunicacion se realiza exclusivamente a traves de **VPC Endpoints de SSM**.
 
 **Pasos:**
-1. Obtiene el Instance ID de `EC2-Datos` desde **SSM Parameter Store** (`/ep03/ec2/datos`)
+1. Obtiene el Instance ID de `EC2-Datos` desde **SSM Parameter Store** (`/ep02/ec2/datos`)
 2. Envia el comando `deploy-datos.sh` a la instancia via `AWS-RunShellScript`
 3. Hace polling del estado del comando cada 10 segundos (maximo 5 minutos / 30 intentos)
 4. Si el comando termina en `Success`, imprime el output y el job finaliza exitosamente
@@ -316,7 +316,7 @@ Despliega la nueva imagen en la instancia `EC2-Datos` sin necesidad de acceso SS
 
 **Comportamiento del deploy en EC2-Datos:**
 - Detiene y elimina el contenedor anterior
-- Hace pull de `ep03-db:latest` desde ECR via VPC Endpoint
+- Hace pull de `ep02-db:latest` desde ECR via VPC Endpoint
 - Recrea el contenedor — los datos se reinician desde `init.sql`
 
 > El reinicio de datos en cada deploy es intencional para este entorno de laboratorio. En produccion se omite el `rm -rf pgdata` para preservar los datos existentes.

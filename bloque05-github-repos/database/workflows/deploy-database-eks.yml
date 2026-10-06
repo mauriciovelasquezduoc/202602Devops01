@@ -5,9 +5,9 @@ on:
   workflow_dispatch: {}
 env:
   AWS_REGION: us-east-1
-  ECR_REPO_DB: ep03-database
-  K8S_NAMESPACE: ep03
-  DEPLOYMENT_NAME: ep03-database
+  ECR_REPO_DB: ep02-database
+  K8S_NAMESPACE: ep02
+  DEPLOYMENT_NAME: ep02-database
 permissions:
   contents: write
 jobs:
@@ -175,13 +175,13 @@ jobs:
           echo "========================================="
           echo ""
           echo "--- Pods ---"
-          kubectl get pods -n $K8S_NAMESPACE -l app=ep03-database
+          kubectl get pods -n $K8S_NAMESPACE -l app=ep02-database
           echo ""
           echo "--- Services ---"
-          kubectl get svc -n $K8S_NAMESPACE -l app=ep03-database
+          kubectl get svc -n $K8S_NAMESPACE -l app=ep02-database
           echo ""
           echo "--- Logs (últimas 10 líneas) ---"
-          POD=$(kubectl get pods -n $K8S_NAMESPACE -l app=ep03-database -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+          POD=$(kubectl get pods -n $K8S_NAMESPACE -l app=ep02-database -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
           if [ -n "$POD" ]; then
             kubectl logs "$POD" -n $K8S_NAMESPACE --tail=10 2>/dev/null || true
           fi

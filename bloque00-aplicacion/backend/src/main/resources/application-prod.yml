@@ -6,10 +6,10 @@ spring:
   # ── PostgreSQL producción (AWS RDS / EC2 separado) ────────────────────────
   # Las variables de entorno se inyectan en el contenedor o en ECS task definition
   datasource:
-    url: ${DB_URL:jdbc:postgresql://db:5432/ep03}
+    url: ${DB_URL:jdbc:postgresql://db:5432/ep02}
     driverClassName: org.postgresql.Driver
-    username: ${DB_USERNAME:ep03_user}
-    password: ${DB_PASSWORD:ep03_pass}
+    username: ${DB_USERNAME:ep02_user}
+    password: ${DB_PASSWORD:ep02_pass}
 
   jpa:
     hibernate:

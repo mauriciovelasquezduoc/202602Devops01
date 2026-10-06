@@ -7,22 +7,22 @@ export const ALUMNOS = [
 ]
 
 // Usar rutas relativas para que coincidan con la API del frontend
-// El frontend usa axios.create({ baseURL: '/ep03' })
+// El frontend usa axios.create({ baseURL: '/ep02' })
 export const handlers = [
-  http.get('/ep03',           () => HttpResponse.json(ALUMNOS)),
-  http.post('/ep03',          async ({ request }) => {
+  http.get('/ep02',           () => HttpResponse.json(ALUMNOS)),
+  http.post('/ep02',          async ({ request }) => {
     const body = await request.json()
     return HttpResponse.json({ id: 99, ...body }, { status: 200 })
   }),
-  http.put('/ep03/:id',       async ({ params, request }) => {
+  http.put('/ep02/:id',       async ({ params, request }) => {
     const body = await request.json()
     return HttpResponse.json({ id: Number(params.id), ...body })
   }),
-  http.delete('/ep03/:id',    () => new HttpResponse(null, { status: 200 })),
-  http.get('/ep03/export',    () =>
+  http.delete('/ep02/:id',    () => new HttpResponse(null, { status: 200 })),
+  http.get('/ep02/export',    () =>
     new HttpResponse('Juan,Pérez\nAna,López', {
       headers: { 'Content-Type': 'text/plain' }
     })
   ),
-  http.post('/ep03/import',   () => new HttpResponse(null, { status: 200 })),
+  http.post('/ep02/import',   () => new HttpResponse(null, { status: 200 })),
 ]

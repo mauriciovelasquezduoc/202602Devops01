@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ==================================================================
 # GUIA 04 / BLOQUE 01 - Infraestructura Kubernetes consolidada
-# Crea/valida rapidamente la infra base de guia-03 bloques 1, 2 y 3:
+# Crea/valida rapidamente la infra base de guia bloques 1, 2 y 3:
 #   - VPC Multi-AZ + endpoints
 #   - Cluster EKS + addons
 #   - NodeGroup SPOT
@@ -16,10 +16,10 @@ REPORT_DIR="$SCRIPT_DIR/reports"
 REPORT_FILE="$REPORT_DIR/infra-k8s-$(date +%Y%m%d-%H%M%S).md"
 
 REGION="${REGION:-us-east-1}"
-VPC_STACK="${VPC_STACK:-laboratorio-ep03-vpc}"
-EKS_STACK="${EKS_STACK:-laboratorio-ep03-eks}"
-CLUSTER_NAME="${CLUSTER_NAME:-laboratorio-ep03-eks}"
-NODEGROUP_NAME="${NODEGROUP_NAME:-laboratorio-ep03-nodegroup}"
+VPC_STACK="${VPC_STACK:-laboratorio-ep02-vpc}"
+EKS_STACK="${EKS_STACK:-laboratorio-ep02-eks}"
+CLUSTER_NAME="${CLUSTER_NAME:-laboratorio-ep02-eks}"
+NODEGROUP_NAME="${NODEGROUP_NAME:-laboratorio-ep02-nodegroup}"
 VPC_TEMPLATE="$SCRIPT_DIR/templates/vpc.yaml"
 EKS_TEMPLATE="$SCRIPT_DIR/templates/cluster_eks.yaml"
 SECRETS_FILE="$GUIA04_DIR/secrets.txt"
@@ -157,7 +157,7 @@ validate_subnet_tags() {
   aws ec2 describe-subnets \
     --region "$REGION" \
     --filters "Name=vpc-id,Values=$vpc_id" \
-    --query 'Subnets[*].[SubnetId,AvailabilityZone,CidrBlock,Tags[?Key==`Name`].Value|[0],Tags[?Key==`kubernetes.io/cluster/laboratorio-ep03-eks`].Value|[0],Tags[?Key==`kubernetes.io/role/elb`].Value|[0],Tags[?Key==`kubernetes.io/role/internal-elb`].Value|[0]]' \
+    --query 'Subnets[*].[SubnetId,AvailabilityZone,CidrBlock,Tags[?Key==`Name`].Value|[0],Tags[?Key==`kubernetes.io/cluster/laboratorio-ep02-eks`].Value|[0],Tags[?Key==`kubernetes.io/role/elb`].Value|[0],Tags[?Key==`kubernetes.io/role/internal-elb`].Value|[0]]' \
     --output table
 
   record_step "Tags subnets" "OK" "Tags de LoadBalancer/EKS validados visualmente"

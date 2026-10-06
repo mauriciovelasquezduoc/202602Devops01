@@ -45,7 +45,7 @@ Resources:
     Type: AWS::EKS::Cluster
     Properties:
 
-      Name: laboratorio-ep03-eks
+      Name: laboratorio-ep02-eks
 
       Version: "1.33"
 
@@ -115,7 +115,7 @@ Resources:
 
       ClusterName: !Ref EksCluster
 
-      NodegroupName: laboratorio-ep03-nodegroup
+      NodegroupName: laboratorio-ep02-nodegroup
 
       NodeRole: !Ref EksNodeRoleArn
 

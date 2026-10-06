@@ -1,4 +1,4 @@
-package cl.duocuc.ep03.cucumber;
+package cl.duocuc.ep02.cucumber;
 
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;

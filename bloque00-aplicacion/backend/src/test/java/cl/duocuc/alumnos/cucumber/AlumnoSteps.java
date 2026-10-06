@@ -1,4 +1,4 @@
-package cl.duocuc.ep03.cucumber;
+package cl.duocuc.ep02.cucumber;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -10,7 +10,7 @@ import org.springframework.http.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import cl.duocuc.ep03.domain.Alumno;
+import cl.duocuc.ep02.domain.Alumno;
 import io.cucumber.java.Before;
 import io.cucumber.java.en.And;
 import io.cucumber.java.en.Given;
@@ -27,7 +27,7 @@ public class AlumnoSteps extends CucumberSpringConfiguration {
     private Long lastCreatedId;
 
     private String baseUrl() {
-        return "http://localhost:" + port + "/ep03";
+        return "http://localhost:" + port + "/ep02";
     }
 
     @Before
@@ -60,7 +60,7 @@ public class AlumnoSteps extends CucumberSpringConfiguration {
 
     // ─── WHEN ────────────────────────────────────────────────────────────────
 
-    @When("consulto la lista de ep03")
+    @When("consulto la lista de ep02")
     public void consultoLaListaDeAlumnos() {
         lastResponse = restTemplate.getForEntity(baseUrl(), List.class);
     }
@@ -102,7 +102,7 @@ public class AlumnoSteps extends CucumberSpringConfiguration {
                         Void.class);
     }
 
-    @When("exporto los ep03 a CSV")
+    @When("exporto los ep02 a CSV")
     public void exportoLosAlumnosACSV() {
         lastResponse = restTemplate.getForEntity(baseUrl() + "/export", String.class);
     }
@@ -125,7 +125,7 @@ public class AlumnoSteps extends CucumberSpringConfiguration {
         assertEquals(codigo, lastResponse.getStatusCode().value());
     }
 
-    @And("la lista de ep03 esta vacia")
+    @And("la lista de ep02 esta vacia")
     public void laListaDeAlumnosEstaVacia() {
         List<?> body = (List<?>) lastResponse.getBody();
         assertNotNull(body);

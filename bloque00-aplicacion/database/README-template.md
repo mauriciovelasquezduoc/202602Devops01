@@ -1,4 +1,4 @@
-# README-template — Base de Datos PostgreSQL (202601_ep03_db)
+# README-template — Base de Datos PostgreSQL (202601_ep02_db)
 
 > **Instrucciones:** Completa cada sección con las evidencias generadas en los reportes de `bloque06/docs/reports/`.  
 > Las capturas de pantalla van en la carpeta `docs/`.
@@ -12,8 +12,8 @@ Se despliega como un Deployment en Kubernetes con almacenamiento efímero
 (los datos se inicializan desde `init.sql` en cada deploy).
 
 **Puerto:** 3306  
-**Service:** ClusterIP (solo interno) — nombre DNS: `ep03-db`  
-**Namespace:** `ep03`
+**Service:** ClusterIP (solo interno) — nombre DNS: `ep02-db`  
+**Namespace:** `ep02`
 
 ---
 
@@ -45,7 +45,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: postgres-secret
-  namespace: ep03
+  namespace: ep02
 type: Opaque
 data:
   MYSQL_ROOT_PASSWORD: <base64>
@@ -56,11 +56,11 @@ data:
 ## ✅ Validación
 
 ```
-$ kubectl get pods -n ep03 -l app=ep03-db
+$ kubectl get pods -n ep02 -l app=ep02-db
 NAME                           READY   STATUS    RESTARTS   AGE
-ep03-db-7b98d4fcf-gd44n      1/1     Running   0          34m
+ep02-db-7b98d4fcf-gd44n      1/1     Running   0          34m
 
-$ kubectl logs -n ep03 -l app=ep03-db --tail=5
+$ kubectl logs -n ep02 -l app=ep02-db --tail=5
 ...
 [Server] /usr/sbin/mysqld: ready for connections. Version: '8.0.33'
 ```

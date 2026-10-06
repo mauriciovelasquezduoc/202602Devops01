@@ -86,25 +86,25 @@ git push origin main
 
 ```bash
 # Ver pods ejecutándose
-kubectl get pods -n ep03
+kubectl get pods -n ep02
 
 # Ver servicios
-kubectl get svc -n ep03
+kubectl get svc -n ep02
 
 # Ver deployments
-kubectl get deployments -n ep03
+kubectl get deployments -n ep02
 ```
 
 ## Paso 6: Obtener IP pública del Load Balancer
 
 ```bash
 # Obtener la URL del frontend
-kubectl get svc ep03-frontend \
-  -n ep03 \
+kubectl get svc ep02-frontend \
+  -n ep02 \
   -o custom-columns=NAME:.metadata.name,TYPE:.spec.type,CLUSTER-IP:.spec.clusterIP,EXTERNAL-HOST:.status.loadBalancer.ingress[0].hostname,PORT:.spec.ports[0].port
 
 # O de forma más completa
-kubectl get svc -n ep03
+kubectl get svc -n ep02
 
 # Copiar el EXTERNAL-IP del frontend y abrir en el navegador:
 # http://<EXTERNAL-IP>
@@ -139,7 +139,7 @@ kubectl get svc -n ep03
 │                          │                                      │
 │                          ▼                                      │
 │  4. VERIFICAR                                                   │
-│     ├── kubectl get svc -n ep03                              │
+│     ├── kubectl get svc -n ep02                              │
 │     ├── Copiar EXTERNAL-IP                                      │
 │     └── Abrir http://<EXTERNAL-IP>                              │
 │                                                                 │
@@ -151,17 +151,17 @@ kubectl get svc -n ep03
 ### Database
 
 - **Jobs:** Versioning → Build & Push ECR
-- **Resultado:** Imagen `ep03-database` en ECR
+- **Resultado:** Imagen `ep02-database` en ECR
 
 ### Backend
 
 - **Jobs:** Code Quality → Build & Test → Security → Versioning → Build & Push ECR
-- **Resultado:** Imagen `ep03-backend` en ECR
+- **Resultado:** Imagen `ep02-backend` en ECR
 
 ### Frontend
 
 - **Jobs:** Test → Quality → Versioning → Build & Push ECR
-- **Resultado:** Imagen `ep03-frontend` en ECR
+- **Resultado:** Imagen `ep02-frontend` en ECR
 
 ## Comandos Útiles
 
@@ -176,13 +176,13 @@ gh run view ID_RUN --repo TU_USUARIO/TU_REPO --log
 gh secret list --repo TU_USUARIO/TU_REPO
 
 # Ver pods en tiempo real
-kubectl get pods -n ep03 --watch
+kubectl get pods -n ep02 --watch
 
 # Ver logs de un pod
-kubectl logs -f POD_NAME -n ep03
+kubectl logs -f POD_NAME -n ep02
 
 # Reiniciar un deployment
-kubectl rollout restart deployment/DEPLOYMENT_NAME -n ep03
+kubectl rollout restart deployment/DEPLOYMENT_NAME -n ep02
 ```
 
 ## Solución de Problemas
@@ -197,17 +197,17 @@ kubectl rollout restart deployment/DEPLOYMENT_NAME -n ep03
 
 ```bash
 # Ver logs del pod con error
-kubectl logs POD_NAME -n ep03
+kubectl logs POD_NAME -n ep02
 
 # Ver eventos
-kubectl get events -n ep03 --sort-by='.lastTimestamp'
+kubectl get events -n ep02 --sort-by='.lastTimestamp'
 ```
 
 ### No se obtiene IP del Load Balancer
 
 ```bash
 # Verificar si el servicio tiene EXTERNAL-IP
-kubectl get svc ep03-frontend -n ep03
+kubectl get svc ep02-frontend -n ep02
 
 # Si dice "<pending>", esperar 2-3 minutos
 # Si persiste, verificar logs del controller

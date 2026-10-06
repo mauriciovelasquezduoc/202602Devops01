@@ -12,15 +12,15 @@ afterEach(() => server.resetHandlers())
 afterAll(() => server.close())
 
 describe('useAlumnos — carga inicial', () => {
-  it('inicia con loading=true y luego carga los ep03', async () => {
+  it('inicia con loading=true y luego carga los ep02', async () => {
     const { result } = renderHook(() => useAlumnos())
     expect(result.current.loading).toBe(true)
     await waitFor(() => expect(result.current.loading).toBe(false))
-    expect(result.current.ep03).toHaveLength(3)
+    expect(result.current.ep02).toHaveLength(3)
   })
 
   it('muestra error si la carga falla', async () => {
-    server.use(http.get('/ep03', () => HttpResponse.error()))
+    server.use(http.get('/ep02', () => HttpResponse.error()))
     const { result } = renderHook(() => useAlumnos())
     await waitFor(() => expect(result.current.error).toBeTruthy(), { timeout: 3000 })
     expect(result.current.error).toMatch(/Error al cargar/i)
@@ -40,7 +40,7 @@ describe('useAlumnos — crear', () => {
   })
 
   it('retorna false y muestra error si crear falla', async () => {
-    server.use(http.post('/ep03', () => HttpResponse.error()))
+    server.use(http.post('/ep02', () => HttpResponse.error()))
     const { result } = renderHook(() => useAlumnos())
     await waitFor(() => expect(result.current.loading).toBe(false))
     let ok
@@ -65,7 +65,7 @@ describe('useAlumnos — actualizar', () => {
   })
 
   it('retorna false y muestra error si actualizar falla', async () => {
-    server.use(http.put('/ep03/:id', () => HttpResponse.error()))
+    server.use(http.put('/ep02/:id', () => HttpResponse.error()))
     const { result } = renderHook(() => useAlumnos())
     await waitFor(() => expect(result.current.loading).toBe(false))
     let ok
@@ -86,7 +86,7 @@ describe('useAlumnos — eliminar', () => {
   })
 
   it('muestra error si eliminar falla', async () => {
-    server.use(http.delete('/ep03/:id', () => HttpResponse.error()))
+    server.use(http.delete('/ep02/:id', () => HttpResponse.error()))
     const { result } = renderHook(() => useAlumnos())
     await waitFor(() => expect(result.current.loading).toBe(false))
     await act(async () => { await result.current.eliminar(1) })
@@ -112,7 +112,7 @@ describe('useAlumnos — exportar', () => {
   })
 
   it('muestra error si exportar falla', async () => {
-    server.use(http.get('/ep03/export', () => HttpResponse.error()))
+    server.use(http.get('/ep02/export', () => HttpResponse.error()))
     const { result } = renderHook(() => useAlumnos())
     await waitFor(() => expect(result.current.loading).toBe(false))
     await act(async () => { await result.current.exportar() })
@@ -133,7 +133,7 @@ describe('useAlumnos — importar', () => {
   })
 
   it('retorna false y muestra error si importar falla', async () => {
-    server.use(http.post('/ep03/import', () => HttpResponse.error()))
+    server.use(http.post('/ep02/import', () => HttpResponse.error()))
     const { result } = renderHook(() => useAlumnos())
     await waitFor(() => expect(result.current.loading).toBe(false))
     let ok

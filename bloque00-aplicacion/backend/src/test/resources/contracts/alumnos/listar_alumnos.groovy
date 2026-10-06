@@ -1,11 +1,11 @@
 import org.springframework.cloud.contract.spec.Contract
 
 Contract.make {
-    description "GET /ep03 retorna lista vacía cuando no hay ep03"
+    description "GET /ep02 retorna lista vacía cuando no hay ep02"
 
     request {
         method GET()
-        url '/ep03'
+        url '/ep02'
     }
 
     response {

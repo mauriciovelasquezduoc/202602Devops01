@@ -1,4 +1,4 @@
-package cl.duocuc.ep03.infrastructure.repository;
+package cl.duocuc.ep02.infrastructure.repository;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -11,7 +11,7 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 
-import cl.duocuc.ep03.infrastructure.entity.AlumnoEntity;
+import cl.duocuc.ep02.infrastructure.entity.AlumnoEntity;
 
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)

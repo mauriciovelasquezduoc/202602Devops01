@@ -1,4 +1,4 @@
-package cl.duocuc.ep03.infrastructure.config;
+package cl.duocuc.ep02.infrastructure.config;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;

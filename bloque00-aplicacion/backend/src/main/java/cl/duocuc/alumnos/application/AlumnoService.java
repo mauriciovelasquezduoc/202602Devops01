@@ -1,12 +1,12 @@
-package cl.duocuc.ep03.application;
+package cl.duocuc.ep02.application;
 
 import java.util.List;
 
 import org.springframework.stereotype.Service;
 
-import cl.duocuc.ep03.domain.Alumno;
-import cl.duocuc.ep03.infrastructure.mapper.AlumnoMapper;
-import cl.duocuc.ep03.infrastructure.repository.AlumnoRepository;
+import cl.duocuc.ep02.domain.Alumno;
+import cl.duocuc.ep02.infrastructure.mapper.AlumnoMapper;
+import cl.duocuc.ep02.infrastructure.repository.AlumnoRepository;
 
 @Service
 public class AlumnoService {

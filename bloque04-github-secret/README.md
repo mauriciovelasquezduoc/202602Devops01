@@ -4,11 +4,11 @@
 
 Los repositorios de GitHub deben estar creados **antes** de ejecutar este script:
 
-| Repositorio | URL |
-|-------------|-----|
-| evp03_ing_devops_database | https://github.com/mauriciovelasquezduoc/evp03_ing_devops_database |
-| evp03_ing_devops_backend | https://github.com/mauriciovelasquezduoc/evp03_ing_devops_backend |
-| evp03_ing_devops_frontend | https://github.com/mauriciovelasquezduoc/evp03_ing_devops_frontend |
+| Repositorio              | URL                                                  |
+| ------------------------ | ---------------------------------------------------- |
+| ep02_ing_devops_database | https://github.com/TUCUENTA/ep02_ing_devops_database |
+| ep02_ing_devops_backend  | https://github.com/TUCUENTA/ep02_ing_devops_backend  |
+| ep02_ing_devops_frontend | https://github.com/TUCUENTA/ep02_ing_devops_frontend |
 
 Si aún no existen, crearlos ejecutando los comandos del README en `bloque00-aplicacion/`.
 
@@ -44,28 +44,31 @@ SONAR_TOKEN=XXXX
 SNYK_TOKEN=XXXX
 AWS_REGION=us-east-1
 GITHUB_TOKEN=ghp_XXXX
-GITHUB_DATABASE=https://github.com/usuario/evp03_ing_devops_database.git
-GITHUB_BACKEND=https://github.com/usuario/evp03_ing_devops_backend.git
-GITHUB_FRONTEND=https://github.com/usuario/evp03_ing_devops_frontend.git
+GITHUB_DATABASE=https://github.com/usuario/ep02_ing_devops_database.git
+GITHUB_BACKEND=https://github.com/usuario/ep02_ing_devops_backend.git
+GITHUB_FRONTEND=https://github.com/usuario/ep02_ing_devops_frontend.git
 ```
 
 ## Verificar Secrets Configurados
 
 ```bash
-gh secret list --repo mauriciovelasquezduoc/evp03_ing_devops_database
-gh secret list --repo mauriciovelasquezduoc/evp03_ing_devops_backend
-gh secret list --repo mauriciovelasquezduoc/evp03_ing_devops_frontend
+gh secret list --repo TUCUENTA/ep02_ing_devops_database
+gh secret list --repo TUCUENTA/ep02_ing_devops_backend
+gh secret list --repo TUCUENTA/ep02_ing_devops_frontend
 ```
 
 ## Solución de Problemas
 
 ### "Repositorio no encontrado"
+
 - Verificar que el repositorio exista en GitHub
 - Verificar que el nombre en `secrets.txt` sea correcto
 
 ### "Token inválido"
+
 - Verificar que `GITHUB_TOKEN` en `secrets.txt` sea válido
 - Generar nuevo token: https://github.com/settings/tokens
 
 ### "Permisos insuficientes"
+
 - El token debe tener scope `repo` para configurar secrets

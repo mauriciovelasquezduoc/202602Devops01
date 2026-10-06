@@ -1,4 +1,4 @@
-package cl.duocuc.ep03.infrastructure.controller;
+package cl.duocuc.ep02.infrastructure.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -19,8 +19,8 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import cl.duocuc.ep03.application.AlumnoService;
-import cl.duocuc.ep03.domain.Alumno;
+import cl.duocuc.ep02.application.AlumnoService;
+import cl.duocuc.ep02.domain.Alumno;
 
 @WebMvcTest(AlumnoController.class)
 @WithMockUser
@@ -38,7 +38,7 @@ class AlumnoControllerTest {
                 .thenReturn(
                         List.of(new Alumno(1L, "Juan", "Pérez"), new Alumno(2L, "Ana", "López")));
 
-        mockMvc.perform(get("/ep03"))
+        mockMvc.perform(get("/ep02"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].nombre").value("Juan"))
@@ -52,7 +52,7 @@ class AlumnoControllerTest {
         when(service.crear(any(Alumno.class))).thenReturn(created);
 
         mockMvc.perform(
-                        post("/ep03")
+                        post("/ep02")
                                 .with(csrf())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(input)))
@@ -68,7 +68,7 @@ class AlumnoControllerTest {
         when(service.actualizar(eq(4L), any(Alumno.class))).thenReturn(updated);
 
         mockMvc.perform(
-                        put("/ep03/4")
+                        put("/ep02/4")
                                 .with(csrf())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(input)))
@@ -81,7 +81,7 @@ class AlumnoControllerTest {
     void eliminar_retorna200() throws Exception {
         doNothing().when(service).eliminar(5L);
 
-        mockMvc.perform(delete("/ep03/5").with(csrf())).andExpect(status().isOk());
+        mockMvc.perform(delete("/ep02/5").with(csrf())).andExpect(status().isOk());
 
         verify(service, times(1)).eliminar(5L);
     }
@@ -92,7 +92,7 @@ class AlumnoControllerTest {
                 .thenReturn(
                         List.of(new Alumno(1L, "Juan", "Pérez"), new Alumno(2L, "Ana", "López")));
 
-        mockMvc.perform(get("/ep03/export"))
+        mockMvc.perform(get("/ep02/export"))
                 .andExpect(status().isOk())
                 .andExpect(content().string("Juan,Pérez\nAna,López"));
     }
@@ -101,7 +101,7 @@ class AlumnoControllerTest {
     void exportar_listaVaciaRetornaCadenaVacia() throws Exception {
         when(service.listar()).thenReturn(List.of());
 
-        mockMvc.perform(get("/ep03/export"))
+        mockMvc.perform(get("/ep02/export"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(""));
     }
@@ -112,7 +112,7 @@ class AlumnoControllerTest {
         when(service.crear(any(Alumno.class))).thenReturn(new Alumno(1L, "Juan", "Pérez"));
 
         mockMvc.perform(
-                        post("/ep03/import")
+                        post("/ep02/import")
                                 .with(csrf())
                                 .contentType(MediaType.TEXT_PLAIN)
                                 .content(csv))
@@ -128,7 +128,7 @@ class AlumnoControllerTest {
         when(service.crear(any(Alumno.class))).thenReturn(new Alumno(1L, "Juan", "Pérez"));
 
         mockMvc.perform(
-                        post("/ep03/import")
+                        post("/ep02/import")
                                 .with(csrf())
                                 .contentType(MediaType.TEXT_PLAIN)
                                 .content(csv))

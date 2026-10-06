@@ -20,7 +20,7 @@ Resources:
 
       Tags:
         - Key: Name
-          Value: laboratorio-ep03
+          Value: laboratorio-ep02
 
 # =========================================================
 # INTERNET GATEWAY
@@ -56,7 +56,7 @@ Resources:
         - Key: kubernetes.io/role/elb
           Value: "1"
 
-        - Key: kubernetes.io/cluster/laboratorio-ep03-eks
+        - Key: kubernetes.io/cluster/laboratorio-ep02-eks
           Value: shared
 
   PublicSubnetB:
@@ -76,7 +76,7 @@ Resources:
         - Key: kubernetes.io/role/elb
           Value: "1"
 
-        - Key: kubernetes.io/cluster/laboratorio-ep03-eks
+        - Key: kubernetes.io/cluster/laboratorio-ep02-eks
           Value: shared
 
 # =========================================================
@@ -98,7 +98,7 @@ Resources:
         - Key: kubernetes.io/role/internal-elb
           Value: "1"
 
-        - Key: kubernetes.io/cluster/laboratorio-ep03-eks
+        - Key: kubernetes.io/cluster/laboratorio-ep02-eks
           Value: shared
 
   PrivateAppSubnetB:
@@ -116,7 +116,7 @@ Resources:
         - Key: kubernetes.io/role/internal-elb
           Value: "1"
 
-        - Key: kubernetes.io/cluster/laboratorio-ep03-eks
+        - Key: kubernetes.io/cluster/laboratorio-ep02-eks
           Value: shared
 
 # =========================================================

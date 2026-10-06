@@ -1,12 +1,12 @@
-package cl.duocuc.ep03.infrastructure.mapper;
+package cl.duocuc.ep02.infrastructure.mapper;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import org.junit.jupiter.api.Test;
 
-import cl.duocuc.ep03.domain.Alumno;
-import cl.duocuc.ep03.infrastructure.entity.AlumnoEntity;
+import cl.duocuc.ep02.domain.Alumno;
+import cl.duocuc.ep02.infrastructure.entity.AlumnoEntity;
 
 class AlumnoMapperTest {
 

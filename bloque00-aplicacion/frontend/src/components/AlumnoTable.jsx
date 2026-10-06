@@ -1,9 +1,9 @@
-export default function AlumnoTable({ ep03, onEdit, onDelete }) {
-  if (ep03.length === 0) {
+export default function AlumnoTable({ ep02, onEdit, onDelete }) {
+  if (ep02.length === 0) {
     return (
       <div className="empty-state">
         <div className="icon">🎓</div>
-        <p>No hay ep03 registrados aún.</p>
+        <p>No hay ep02 registrados aún.</p>
         <p style={{ fontSize: '.85rem', marginTop: '.25rem' }}>
           Usa el formulario de arriba para agregar el primero.
         </p>
@@ -23,7 +23,7 @@ export default function AlumnoTable({ ep03, onEdit, onDelete }) {
           </tr>
         </thead>
         <tbody>
-          {ep03.map((a) => (
+          {ep02.map((a) => (
             <tr key={a.id}>
               <td><span className="badge">{a.id}</span></td>
               <td>{a.nombre}</td>

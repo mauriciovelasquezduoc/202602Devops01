@@ -6,7 +6,7 @@
              https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
 
     <description>
-        Reglas PMD 7 para el proyecto ep03-app (main + test).
+        Reglas PMD 7 para el proyecto ep02-app (main + test).
         Excluye reglas ruidosas o incompatibles con Spring Boot / Cucumber / JUnit 5.
     </description>
 

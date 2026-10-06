@@ -1,4 +1,4 @@
-# ep03-frontend
+# ep02-frontend
 
 Frontend del sistema **Alumnos**, construido con **React 18** y **Vite 6**. Interfaz CRUD completa con soporte para importacion/exportacion CSV, servida por **Nginx** como proxy inverso hacia la capa App.
 
@@ -22,10 +22,10 @@ Frontend del sistema **Alumnos**, construido con **React 18** y **Vite 6**. Inte
 ## Estructura del proyecto
 
 ```
-ep03-frontend/
+ep02-frontend/
 ├── src/
 │   ├── api/
-│   │   └── ep03.js          # Cliente Axios — llamadas al backend
+│   │   └── ep02.js          # Cliente Axios — llamadas al backend
 │   ├── components/
 │   │   ├── AlumnoForm.jsx      # Formulario crear/editar alumno
 │   │   ├── AlumnoTable.jsx     # Tabla con acciones editar/eliminar
@@ -67,21 +67,21 @@ ep03-frontend/
 
 ### Prerequisitos
 
-Este compose asume que `ep03-backend` ya esta corriendo en la red `ep03-network`.
+Este compose asume que `ep02-backend` ya esta corriendo en la red `ep02-network`.
 
 **1. Crear la red compartida (solo la primera vez):**
 ```bash
-docker network create ep03-network
+docker network create ep02-network
 ```
 
 **2. Levantar la base de datos:**
 ```bash
-cd ../ep03-db && docker compose up -d
+cd ../ep02-db && docker compose up -d
 ```
 
 **3. Levantar el backend:**
 ```bash
-cd ../ep03-backend && docker compose up -d --build
+cd ../ep02-backend && docker compose up -d --build
 ```
 
 ### Levantar el frontend
@@ -100,7 +100,7 @@ Resultado esperado:
 
 ```
 NAME          STATUS       PORTS
-ep03-frontend   Up X seconds 0.0.0.0:80->80/tcp
+ep02-frontend   Up X seconds 0.0.0.0:80->80/tcp
 ```
 
 ### Abrir en el navegador
@@ -136,10 +136,10 @@ La app queda disponible en `http://localhost:3000`.
 El dev server incluye un proxy configurado en `vite.config.js`:
 
 ```
-/ep03  →  http://localhost:8080
+/ep02  →  http://localhost:8080
 ```
 
-Requiere que `ep03-backend` este corriendo en `localhost:8080`.
+Requiere que `ep02-backend` este corriendo en `localhost:8080`.
 
 ### 3. Build de produccion
 
@@ -158,11 +158,11 @@ npm run preview
 
 ## Funcionalidades
 
-### CRUD de ep03
+### CRUD de ep02
 
 | Accion    | Descripcion                                      |
 | --------- | ------------------------------------------------ |
-| Listar    | Tabla con todos los ep03 registrados          |
+| Listar    | Tabla con todos los ep02 registrados          |
 | Crear     | Formulario con campos nombre y apellido          |
 | Editar    | Formulario pre-cargado con datos del alumno      |
 | Eliminar  | Confirmacion antes de borrar                     |
@@ -171,8 +171,8 @@ npm run preview
 
 | Accion   | Descripcion                                           |
 | -------- | ----------------------------------------------------- |
-| Exportar | Descarga `ep03.csv` con todos los registros        |
-| Importar | Pega CSV en el textarea y sube multiples ep03      |
+| Exportar | Descarga `ep02.csv` con todos los registros        |
+| Importar | Pega CSV en el textarea y sube multiples ep02      |
 
 Formato CSV esperado (sin encabezado):
 ```
@@ -183,7 +183,7 @@ Carlos,Soto
 
 ### Stats en tiempo real
 
-- Total de ep03 registrados
+- Total de ep02 registrados
 - Cantidad de apellidos unicos
 
 ---
@@ -193,14 +193,14 @@ Carlos,Soto
 En produccion, Nginx actua como proxy inverso hacia el backend. El hostname del backend se inyecta en runtime via la variable de entorno `BACKEND_HOST`:
 
 ```nginx
-location /ep03 {
-    proxy_pass http://${BACKEND_HOST}:8080/ep03;
+location /ep02 {
+    proxy_pass http://${BACKEND_HOST}:8080/ep02;
 }
 ```
 
 | Entorno       | BACKEND_HOST       | Ejemplo                        |
 | ------------- | ------------------ | ------------------------------ |
-| Docker local  | `ep03-backend`      | nombre del contenedor          |
+| Docker local  | `ep02-backend`      | nombre del contenedor          |
 | AWS EC2       | IP privada         | `10.0.1.45`                    |
 
 El reemplazo se realiza con `envsubst` al iniciar el contenedor, sin necesidad de rebuild.
@@ -253,7 +253,7 @@ npm run test:ui
 | ------------ | ---------------------- |
 | Base build   | `node:20-alpine`       |
 | Base runtime | `nginx:1.27-alpine`    |
-| Imagen ECR   | `ep03-frontend:latest`   |
+| Imagen ECR   | `ep02-frontend:latest`   |
 | Puerto       | `80`                   |
 | Healthcheck  | `GET http://localhost` |
 
@@ -273,7 +273,7 @@ El Dockerfile usa 4 etapas para garantizar calidad y minimizar la imagen final:
 ### Construir la imagen manualmente
 
 ```bash
-docker build -t ep03-frontend:latest .
+docker build -t ep02-frontend:latest .
 ```
 
 ### Publicar en ECR
@@ -284,8 +284,8 @@ aws ecr get-login-password --region us-east-1 \
   | docker login --username AWS --password-stdin <ECR_REGISTRY>
 
 # Tag y push
-docker tag ep03-frontend:latest <ECR_REGISTRY>/ep03-frontend:latest
-docker push <ECR_REGISTRY>/ep03-frontend:latest
+docker tag ep02-frontend:latest <ECR_REGISTRY>/ep02-frontend:latest
+docker push <ECR_REGISTRY>/ep02-frontend:latest
 ```
 
 ---
@@ -294,7 +294,7 @@ docker push <ECR_REGISTRY>/ep03-frontend:latest
 
 | Variable       | Descripcion                          | Ejemplo          |
 | -------------- | ------------------------------------ | ---------------- |
-| `BACKEND_HOST` | Hostname o IP del backend (runtime)  | `ep03-backend`    |
+| `BACKEND_HOST` | Hostname o IP del backend (runtime)  | `ep02-backend`    |
 | `VITE_API_URL` | URL del backend en dev server (build)| `http://localhost:8080` |
 
 > `BACKEND_HOST` se usa en produccion (Nginx). `VITE_API_URL` se usa en desarrollo local (Vite proxy).
@@ -308,11 +308,11 @@ Esta imagen forma parte de la infraestructura de 3 capas del sistema Alumnos:
 ```
 Internet
    |
-EC2-Web   (ep03-frontend:latest)    — Capa Web    — Puerto 80   <-- este servicio
-   |  (proxy /ep03 → :8080)
-EC2-App   (ep03-backend:latest)    — Capa App    — Puerto 8080
+EC2-Web   (ep02-frontend:latest)    — Capa Web    — Puerto 80   <-- este servicio
+   |  (proxy /ep02 → :8080)
+EC2-App   (ep02-backend:latest)    — Capa App    — Puerto 8080
    |
-EC2-Datos (ep03-db:latest)  — Capa Datos  — Puerto 5432
+EC2-Datos (ep02-db:latest)  — Capa Datos  — Puerto 5432
 ```
 
 - Unico punto de entrada desde internet (SG-Web permite TCP 80 desde 0.0.0.0/0)
@@ -433,8 +433,8 @@ Construye la imagen Docker completa usando el `Dockerfile` multi-etapa del proye
 
 | Tag publicado | Ejemplo | Uso |
 |---|---|---|
-| Version semantica | `ep03-frontend:v1.3.0` | Rollback, trazabilidad |
-| Latest | `ep03-frontend:latest` | Despliegue automatico |
+| Version semantica | `ep02-frontend:v1.3.0` | Rollback, trazabilidad |
+| Latest | `ep02-frontend:latest` | Despliegue automatico |
 
 ---
 
@@ -443,15 +443,15 @@ Construye la imagen Docker completa usando el `Dockerfile` multi-etapa del proye
 Despliega la nueva imagen en la instancia `EC2-Web` sin necesidad de acceso SSH directo. A diferencia de las capas App y Datos, `EC2-Web` esta en la subnet publica y tiene acceso a internet, pero el deploy se realiza igualmente via SSM para mantener consistencia y auditabilidad.
 
 **Pasos:**
-1. Obtiene el Instance ID de `EC2-Web` desde **SSM Parameter Store** (`/ep03/ec2/web`)
+1. Obtiene el Instance ID de `EC2-Web` desde **SSM Parameter Store** (`/ep02/ec2/web`)
 2. Envia el comando `deploy-web.sh` a la instancia via `AWS-RunShellScript`
 3. Hace polling del estado del comando cada 10 segundos (maximo 5 minutos / 30 intentos)
 4. Si el comando termina en `Success`, imprime el output y el job finaliza exitosamente
 5. Si termina en `Failed`, `TimedOut` o `Cancelled`, imprime el error y el job falla
 
 **Comportamiento del deploy en EC2-Web:**
-- Lee la IP privada de `EC2-App` desde SSM Parameter Store (`/ep03/ec2/app/private-ip`)
-- Hace pull de `ep03-frontend:latest` desde ECR
+- Lee la IP privada de `EC2-App` desde SSM Parameter Store (`/ep02/ec2/app/private-ip`)
+- Hace pull de `ep02-frontend:latest` desde ECR
 - Detiene y elimina el contenedor anterior
 - Levanta el nuevo contenedor con `BACKEND_HOST` configurado con la IP privada del backend
 - Nginx reemplaza `${BACKEND_HOST}` en `nginx.conf` via `envsubst` al arrancar

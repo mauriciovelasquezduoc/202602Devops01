@@ -2,16 +2,16 @@
 # Modifica estos valores para cambiar la configuración del despliegue
 
 # Namespace
-NAMESPACE=ep03
+NAMESPACE=ep02
 
 # Imágenes (reemplazar con tus URIs de ECR)
-DATABASE_IMAGE=525422067597.dkr.ecr.us-east-1.amazonaws.com/ep03-database:latest
-BACKEND_IMAGE=525422067597.dkr.ecr.us-east-1.amazonaws.com/ep03-backend:latest
-FRONTEND_IMAGE=525422067597.dkr.ecr.us-east-1.amazonaws.com/ep03-frontend:latest
+DATABASE_IMAGE=749553157552.dkr.ecr.us-east-1.amazonaws.com/ep02-database:latest
+BACKEND_IMAGE=749553157552.dkr.ecr.us-east-1.amazonaws.com/ep02-backend:latest
+FRONTEND_IMAGE=749553157552.dkr.ecr.us-east-1.amazonaws.com/ep02-frontend:latest
 
 # Base de datos
-DATABASE_NAME=ep03
-DATABASE_USER=ep03_user
+DATABASE_NAME=ep02
+DATABASE_USER=ep02_user
 DATABASE_PASSWORD_B64=YWx1bW5vc19wYXNz
 DATABASE_PORT=5432
 DATABASE_REPLICAS=1

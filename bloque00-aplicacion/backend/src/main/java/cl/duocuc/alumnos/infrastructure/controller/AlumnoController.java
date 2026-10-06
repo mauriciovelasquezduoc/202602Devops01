@@ -1,17 +1,17 @@
-package cl.duocuc.ep03.infrastructure.controller;
+package cl.duocuc.ep02.infrastructure.controller;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
 import org.springframework.web.bind.annotation.*;
 
-import cl.duocuc.ep03.application.AlumnoService;
-import cl.duocuc.ep03.domain.Alumno;
+import cl.duocuc.ep02.application.AlumnoService;
+import cl.duocuc.ep02.domain.Alumno;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
-@RequestMapping("/ep03")
+@RequestMapping("/ep02")
 @Tag(name = "Alumnos", description = "Operaciones CRUD y CSV")
 public class AlumnoController {
 
@@ -21,7 +21,7 @@ public class AlumnoController {
         this.service = service;
     }
 
-    @Operation(summary = "Listar ep03")
+    @Operation(summary = "Listar ep02")
     @GetMapping
     public List<Alumno> listar() {
         return service.listar();
@@ -45,7 +45,7 @@ public class AlumnoController {
         service.eliminar(id);
     }
 
-    @Operation(summary = "Exportar ep03 a CSV")
+    @Operation(summary = "Exportar ep02 a CSV")
     @GetMapping("/export")
     public String exportar() {
         return service.listar().stream()
@@ -53,7 +53,7 @@ public class AlumnoController {
                 .collect(Collectors.joining("\n"));
     }
 
-    @Operation(summary = "Importar ep03 desde CSV")
+    @Operation(summary = "Importar ep02 desde CSV")
     @PostMapping("/import")
     public void importar(@RequestBody String csv) {
         java.util.Arrays.stream(csv.split("\n"))

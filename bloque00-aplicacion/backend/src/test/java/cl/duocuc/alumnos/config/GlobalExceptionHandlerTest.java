@@ -1,4 +1,4 @@
-package cl.duocuc.ep03.config;
+package cl.duocuc.ep02.config;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;

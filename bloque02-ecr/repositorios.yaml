@@ -2,17 +2,17 @@
 # Nombres de los repositorios a crear
 
 REPOSITORIES:
-  - Name: ep03-database
+  - Name: ep02-database
     Description: Repositorio para imagen de base de datos
     ImageTagMutability: MUTABLE
     ScanOnPush: false
 
-  - Name: ep03-backend
+  - Name: ep02-backend
     Description: Repositorio para imagen de backend Spring Boot
     ImageTagMutability: MUTABLE
     ScanOnPush: false
 
-  - Name: ep03-frontend
+  - Name: ep02-frontend
     Description: Repositorio para imagen de frontend Nginx
     ImageTagMutability: MUTABLE
     ScanOnPush: false

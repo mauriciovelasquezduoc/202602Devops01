@@ -1,4 +1,4 @@
-package cl.duocuc.ep03.contract;
+package cl.duocuc.ep02.contract;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -10,9 +10,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import cl.duocuc.ep03.application.AlumnoService;
-import cl.duocuc.ep03.domain.Alumno;
-import cl.duocuc.ep03.infrastructure.controller.AlumnoController;
+import cl.duocuc.ep02.application.AlumnoService;
+import cl.duocuc.ep02.domain.Alumno;
+import cl.duocuc.ep02.infrastructure.controller.AlumnoController;
 import io.restassured.module.mockmvc.RestAssuredMockMvc;
 
 /**
@@ -31,10 +31,10 @@ public abstract class AlumnoContractBase {
     void setUp() {
         MockitoAnnotations.openMocks(this);
 
-        // Stub: GET /ep03 → lista vacía
+        // Stub: GET /ep02 → lista vacía
         when(service.listar()).thenReturn(List.of());
 
-        // Stub: POST /ep03 → alumno creado con id=1
+        // Stub: POST /ep02 → alumno creado con id=1
         when(service.crear(any(Alumno.class))).thenReturn(new Alumno(1L, "Juan", "Perez"));
 
         // standaloneSetup: sin Spring context, sin filtros de seguridad, sin CSRF

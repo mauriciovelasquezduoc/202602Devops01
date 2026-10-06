@@ -29,13 +29,13 @@ describe('App — renderizado inicial', () => {
     expect(document.querySelector('.spinner')).toBeTruthy()
   })
 
-  it('muestra los ep03 después de cargar', async () => {
+  it('muestra los ep02 después de cargar', async () => {
     render(<App />)
     await waitFor(() => expect(screen.getByText('Juan')).toBeInTheDocument())
     expect(screen.getByText('Ana')).toBeInTheDocument()
   })
 
-  it('muestra el contador de ep03 en las stats', async () => {
+  it('muestra el contador de ep02 en las stats', async () => {
     render(<App />)
     await waitFor(() => {
       const statNums = document.querySelectorAll('.stat-num')
@@ -58,7 +58,7 @@ describe('App — renderizado inicial', () => {
 
 describe('App — alertas', () => {
   it('muestra alerta de error si la carga falla', async () => {
-    server.use(http.get('/ep03', () => HttpResponse.error()))
+    server.use(http.get('/ep02', () => HttpResponse.error()))
     render(<App />)
     await waitFor(() =>
       expect(screen.getByText((content) => content.includes('Error al cargar'))).toBeInTheDocument(),

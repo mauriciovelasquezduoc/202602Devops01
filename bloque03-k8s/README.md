@@ -28,16 +28,16 @@ Edita `values.yaml` para cambiar cualquier parámetro:
 
 ```bash
 # Namespace
-NAMESPACE=ep03
+NAMESPACE=ep02
 
 # Imágenes
-DATABASE_IMAGE=461663648686.dkr.ecr.us-east-1.amazonaws.com/ep03-db:latest
-BACKEND_IMAGE=461663648686.dkr.ecr.us-east-1.amazonaws.com/ep03-backend:latest
-FRONTEND_IMAGE=461663648686.dkr.ecr.us-east-1.amazonaws.com/ep03-frontend:latest
+DATABASE_IMAGE=461663648686.dkr.ecr.us-east-1.amazonaws.com/ep02-db:latest
+BACKEND_IMAGE=461663648686.dkr.ecr.us-east-1.amazonaws.com/ep02-backend:latest
+FRONTEND_IMAGE=461663648686.dkr.ecr.us-east-1.amazonaws.com/ep02-frontend:latest
 
 # Base de datos
-DATABASE_NAME=ep03
-DATABASE_USER=ep03_user
+DATABASE_NAME=ep02
+DATABASE_USER=ep02_user
 DATABASE_PASSWORD_B64=YWx1bW5vc19wYXNz
 
 # Backend
@@ -54,47 +54,63 @@ FRONTEND_HPA_CPU=60
 ## Scripts Disponibles
 
 ### `apply-all.sh` - Generar y aplicar
+
+
+
 ```bash
+cd /root/work/bloque03-k8s
 ./apply-all.sh
 ```
+
 1. Lee `values.yaml`
 2. Genera YAMLs en `output/`
 3. Aplica todos los manifiestos a Kubernetes
 
 ### `generate.sh` - Solo generar
+
 ```bash
 ./generate.sh
 ```
+
 Genera los YAMLs sin aplicarlos (útil para inspeccionar).
 
 ### `preview.sh` - Preview
+
 ```bash
 ./preview.sh
 ```
+
 Genera y muestra los archivos generados.
 
 ## Comandos Explicados
 
 ### 1. Namespace
+
 Crea el namespace aislado para todos los recursos del proyecto.
 
 ### 2. Secret
+
 Almacena credenciales en base64 para la base de datos.
 
 ### 3. Base de Datos
+
 - **Deployment**: PostgreSQL con health checks TCP
-- **Service**: ClusterIP interno `ep03-db:5432`
+- **Service**: ClusterIP interno `ep02-db:5432`
 
 ### 4. Backend
+
 - **Deployment**: Spring Boot con métricas para HPA
-- **Service**: ClusterIP interno `ep03-backend:8080`
+- **Service**: ClusterIP interno `ep02-backend:8080`
 
 ### 5. Frontend
+
 - **Deployment**: Nginx con RollingUpdate
 - **Service**: Load Balancer público AWS
 
 ### 6. HPA
+
 Escalado automático basado en CPU:
+
 - Backend: 1-10 réplicas (70% CPU)
 - Frontend: 2-6 réplicas (60% CPU)
 
@@ -106,7 +122,7 @@ graph TB
         User([Usuario])
     end
 
-    subgraph AWS["AWS EKS Cluster - Namespace: ep03"]
+    subgraph AWS["AWS EKS Cluster - Namespace: ep02"]
         subgraph Public["Red Pública"]
             LB[Load Balancer<br/>:80]
         end
@@ -136,7 +152,7 @@ graph TB
     FE1 & FE2 -->|API REST| BE1 & BE2
     BE1 & BE2 -->|SQL| DB
     DB -.->|lee credenciales| Secret
-    
+  
     HPA_BE -.->|escala| BE1 & BE2
     HPA_FE -.->|escala| FE1 & FE2
 
@@ -174,7 +190,7 @@ flowchart LR
     C[templates/*.yaml] --> B
     B --> D[output/*.yaml]
     D --> E[kubectl apply]
-    
+  
     style A fill:#FF9900,stroke:#FF9900,color:#000
     style C fill:#336791,stroke:#336791,color:#fff
     style D fill:#28a745,stroke:#28a745,color:#fff
@@ -185,19 +201,19 @@ flowchart LR
 
 ```bash
 # Verificar estado
-kubectl get all -n ep03
+kubectl get all -n ep02
 
 # Ver pods
-kubectl get pods -n ep03 -o wide
+kubectl get pods -n ep02 -o wide
 
 # Ver HPA
-kubectl get hpa -n ep03
+kubectl get hpa -n ep02
 
 # Logs
-kubectl logs -f <pod-name> -n ep03
+kubectl logs -f <pod-name> -n ep02
 
 # Shell en pod
-kubectl exec -it <pod-name> -n ep03 -- /bin/bash
+kubectl exec -it <pod-name> -n ep02 -- /bin/bash
 ```
 
 ## Notas Importantes

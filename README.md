@@ -19,21 +19,34 @@ GITHUB_BACKEND=
 GITHUB_FRONTEND=
 ```
 
-## PASO 02
 
-Se debe ingresar a Docker Desktop y luego entrar ejecutar una imagen de linux especialmente preparada:
 
-```
-docker pull ghcr.io/mauriciovelasquezduoc/devops-eks-lab:latest
-docker run -it -v ".":/root/work -v ~/.aws:/root/.aws -v /var/run/docker.sock:/var/run/docker.sock ghcr.io/mauriciovelasquezduoc/devops-eks-lab:latest
 
-```
-
-## Paso 03 Aplicación
+## Paso 02 Aplicación
 
 Se debe seleccionar una aplicacion con tres capas se pueda utilizar para esta implementación, se puede utilizar este mismo codigo, ir a leer y aplicar el paso a paso que esta en
 
 [README.d](bloque00-aplicacion/README.md)
+
+## PASO 03
+
+Se debe ingresar a Docker Desktop y luego entrar ejecutar una imagen de linux especialmente preparada:
+
+Requisito previo
+
+```bash
+docker build -t devops-eks-lab .
+```
+
+Debes estar dentro del contenedor Docker `devops-eks-lab` con las credenciales de AWS Academy configuradas:
+
+```bash
+# Desde Windows PowerShell / CMD (fuera del contenedor):
+docker run -it -v ".":/root/work -v ~/.aws:/root/.aws -v /var/run/docker.sock:/var/run/docker.sock devops-eks-lab
+
+# Ya dentro del contenedor, configurar AWS:
+aws configure
+```
 
 ## Paso 04 Infra K8s
 
@@ -43,7 +56,7 @@ Ahora vamos. a crear la infra, que tiene vpc k8s y grupos, el paso a paso esta e
 
 ## Paso 05 ECR
 
-En el archivo bloque02-ecr/repositorios.yaml se debe poner el nombre del repo que tendra de la imagen, recopmendacion: dejar que comience con ep03- y asi mantener un patron que mas adelante se usara.
+En el archivo bloque02-ecr/repositorios.yaml se debe poner el nombre del repo que tendra de la imagen, recopmendacion: dejar que comience con ep02- y asi mantener un patron que mas adelante se usara.
 
 [README.md](bloque02-ecr/README.md)
 
@@ -70,7 +83,7 @@ Ahora, vamos a ir a gihub y vamos a bajar cada proyecto, debe hacerse clone de c
 Para ver la solucion andando:
 
 ```
-kubectl get svc ep03-frontend \
-  -n ep03 \
+kubectl get svc ep02-frontend \
+  -n ep02 \
   -o custom-columns=NAME:.metadata.name,TYPE:.spec.type,CLUSTER-IP:.spec.clusterIP,EXTERNAL-HOST:.status.loadBalancer.ingress[0].hostname,PORT:.spec.ports[0].port
 ```

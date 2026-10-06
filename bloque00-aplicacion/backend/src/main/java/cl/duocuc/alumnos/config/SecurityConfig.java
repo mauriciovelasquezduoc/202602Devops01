@@ -1,4 +1,4 @@
-package cl.duocuc.ep03.config;
+package cl.duocuc.ep02.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

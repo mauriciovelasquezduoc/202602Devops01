@@ -1,4 +1,4 @@
-# README-template — Backend API (202601_ep03_backend)
+# README-template — Backend API (202601_ep02_backend)
 
 > **Instrucciones:** Completa cada sección con las evidencias generadas en los reportes de `bloque06/docs/reports/`.  
 > Las capturas de pantalla van en la carpeta `docs/`.  
@@ -12,7 +12,7 @@
 
 **Tecnología:** Node.js + Express  
 **Puerto:** 3001  
-**Base de datos:** PostgreSQL (ep03-db:3306)  
+**Base de datos:** PostgreSQL (ep02-db:3306)  
 **Endpoints:**
 
 | Método | Ruta | Descripción |
@@ -33,11 +33,11 @@
 
 | Componente | Valor |
 |---|---|
-| **Clúster EKS** | `laboratorio-ep03-eks` (ACTIVE, v1.33) |
+| **Clúster EKS** | `laboratorio-ep02-eks` (ACTIVE, v1.33) |
 | **NodeGroup** | SPOT t3.large, min=1, max=3 |
 | **VPC** | 10.0.0.0/16 — 6 subnets |
 | **Service tipo** | ClusterIP (solo interno) |
-| **DNS interno** | `ep03-backend:3001` |
+| **DNS interno** | `ep02-backend:3001` |
 
 ### Evidencia de la configuración
 
@@ -95,7 +95,7 @@ ip-10-0-11-58.ec2.internal   Ready    <none>   42m   v1.33.11-eks-3385e9b
 
 | Archivo | Propósito |
 |---|---|
-| `k8s/namespace.yaml` | Namespace `ep03` |
+| `k8s/namespace.yaml` | Namespace `ep02` |
 | `k8s/backend-deployment.yaml` | Deployment con 2 réplicas, RollingUpdate, health checks |
 | `k8s/backend-service.yaml` | Service tipo ClusterIP (puerto 3001) |
 | `k8s/backend-hpa.yaml` | HPA: min=2, max=10, CPU 70% |
@@ -104,10 +104,10 @@ ip-10-0-11-58.ec2.internal   Ready    <none>   42m   v1.33.11-eks-3385e9b
 
 | Variable | Fuente | Valor |
 |---|---|---|
-| `DB_HOST` | Hardcodeada | `ep03-db` |
+| `DB_HOST` | Hardcodeada | `ep02-db` |
 | `DB_USER` | Hardcodeada | `root` |
 | `DB_PASSWORD` | `secretKeyRef` → `postgres-secret` | `MYSQL_ROOT_PASSWORD` |
-| `DB_NAME` | Hardcodeada | `ep03_data` |
+| `DB_NAME` | Hardcodeada | `ep02_data` |
 
 ---
 
@@ -133,12 +133,12 @@ metrics:
 
 ### Evidencia de funcionamiento
 
-<!-- Copiar desde docs/reports/etapa09-ValidaApp.md o ejecutar: kubectl get hpa -n ep03 -->
+<!-- Copiar desde docs/reports/etapa09-ValidaApp.md o ejecutar: kubectl get hpa -n ep02 -->
 
 ```
-$ kubectl get hpa -n ep03
+$ kubectl get hpa -n ep02
 NAME                  REFERENCE          TARGETS       MINPODS MAXPODS REPLICAS
-ep03-backend-hpa    Deployment/backend cpu: 1%/70%   2       10      2
+ep02-backend-hpa    Deployment/backend cpu: 1%/70%   2       10      2
 ```
 
 <!-- Inserta captura del HPA -->
@@ -169,19 +169,19 @@ Nunca está expuesta en logs ni en el código.
 
 ### Pods Running
 
-<!-- Copiar desde docs/reports/etapa09-ValidaApp.md o ejecutar: kubectl get pods -n ep03 -->
+<!-- Copiar desde docs/reports/etapa09-ValidaApp.md o ejecutar: kubectl get pods -n ep02 -->
 
 ```
-$ kubectl get pods -n ep03 -l app=ep03-backend
+$ kubectl get pods -n ep02 -l app=ep02-backend
 NAME                              READY   STATUS    RESTARTS   AGE
-ep03-backend-6d7789595b-dcz55   1/1     Running   0          34m
-ep03-backend-6d7789595b-hdv6g   1/1     Running   0          34m
+ep02-backend-6d7789595b-dcz55   1/1     Running   0          34m
+ep02-backend-6d7789595b-hdv6g   1/1     Running   0          34m
 ```
 
 ### Health check
 
 ```
-$ curl -s http://ep03-backend:3001/api/health
+$ curl -s http://ep02-backend:3001/api/health
 {"status":"ok","timestamp":"..."}
 ```
 
@@ -190,11 +190,11 @@ $ curl -s http://ep03-backend:3001/api/health
 <!-- Copiar desde docs/reports/paso12_healing/healing.sh output -->
 
 ```
-$ kubectl delete pod ep03-backend-6d7789595b-dcz55 -n ep03
-pod "ep03-backend-6d7789595b-dcz55" deleted
+$ kubectl delete pod ep02-backend-6d7789595b-dcz55 -n ep02
+pod "ep02-backend-6d7789595b-dcz55" deleted
 
-$ kubectl get pods -n ep03 -w
-ep03-backend-6d7789595b-xk9m2   Running   ← recreado en ~5s
+$ kubectl get pods -n ep02 -w
+ep02-backend-6d7789595b-xk9m2   Running   ← recreado en ~5s
 ```
 
 ---
@@ -204,9 +204,9 @@ ep03-backend-6d7789595b-xk9m2   Running   ← recreado en ~5s
 ### Logs de la aplicación
 
 ```
-$ kubectl logs deployment/ep03-backend -n ep03 --tail=10
+$ kubectl logs deployment/ep02-backend -n ep02 --tail=10
 Server running on port 3001
-Connected to PostgreSQL database: ep03_data
+Connected to PostgreSQL database: ep02_data
 GET /api/health 200 2.101 ms
 ```
 

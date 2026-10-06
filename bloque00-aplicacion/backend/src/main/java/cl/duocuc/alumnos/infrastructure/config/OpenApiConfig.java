@@ -1,4 +1,4 @@
-package cl.duocuc.ep03.infrastructure.config;
+package cl.duocuc.ep02.infrastructure.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,6 +16,6 @@ public class OpenApiConfig {
                         new Info()
                                 .title("API Alumnos")
                                 .version("1.0")
-                                .description("CRUD de ep03 con CSV"));
+                                .description("CRUD de ep02 con CSV"));
     }
 }

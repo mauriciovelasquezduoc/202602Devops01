@@ -17,9 +17,9 @@ on:
 
 env:
   AWS_REGION: us-east-1
-  ECR_REPO_FRONTEND: ep03-frontend
-  K8S_NAMESPACE: ep03
-  DEPLOYMENT_NAME: ep03-frontend
+  ECR_REPO_FRONTEND: ep02-frontend
+  K8S_NAMESPACE: ep02
+  DEPLOYMENT_NAME: ep02-frontend
 
 permissions:
   contents: write
@@ -143,7 +143,7 @@ jobs:
           context: .
           target: runtime
           push: false
-          tags: ep03-frontend:ci
+          tags: ep02-frontend:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -338,12 +338,12 @@ jobs:
           kubectl get svc -n "$K8S_NAMESPACE" -l "app=${ECR_REPO_FRONTEND}"
           echo ""
           echo "--- HPA ---"
-          kubectl get hpa ep03-frontend-hpa -n "$K8S_NAMESPACE" 2>/dev/null || true
+          kubectl get hpa ep02-frontend-hpa -n "$K8S_NAMESPACE" 2>/dev/null || true
 
       - name: Obtener URL publica
         run: |
           set -euo pipefail
-          URL=$(kubectl get svc ep03-frontend -n "$K8S_NAMESPACE" -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "")
+          URL=$(kubectl get svc ep02-frontend -n "$K8S_NAMESPACE" -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "")
           if [ -n "$URL" ]; then
             echo "URL publica: http://$URL"
             echo "URL_PUBLICA=http://$URL" >> "$GITHUB_ENV"

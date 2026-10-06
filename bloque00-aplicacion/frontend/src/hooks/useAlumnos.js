@@ -5,7 +5,7 @@ import {
 } from '../api/alumnos'
 
 export function useAlumnos() {
-  const [ep03,  setAlumnos]  = useState([])
+  const [ep02,  setAlumnos]  = useState([])
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState(null)
   const [success,  setSuccess]  = useState(null)
@@ -21,7 +21,7 @@ export function useAlumnos() {
       const { data } = await getAlumnos()
       setAlumnos(data)
     } catch {
-      notify('Error al cargar ep03', true)
+      notify('Error al cargar ep02', true)
     } finally {
       setLoading(false)
     }
@@ -69,7 +69,7 @@ export function useAlumnos() {
       const blob = new Blob([data], { type: 'text/csv' })
       const url  = URL.createObjectURL(blob)
       const a    = document.createElement('a')
-      a.href = url; a.download = 'ep03.csv'; a.click()
+      a.href = url; a.download = 'ep02.csv'; a.click()
       URL.revokeObjectURL(url)
       notify('CSV exportado')
     } catch {
@@ -89,5 +89,5 @@ export function useAlumnos() {
     }
   }
 
-  return { ep03, loading, error, success, crear, actualizar, eliminar, exportar, importar, reload: load }
+  return { ep02, loading, error, success, crear, actualizar, eliminar, exportar, importar, reload: load }
 }

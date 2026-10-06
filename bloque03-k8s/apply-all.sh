@@ -2,19 +2,54 @@
 
 set -e
 
-aws eks update-kubeconfig   --region us-east-1   --name laboratorio-ep03-eks
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VALUES_FILE="${SCRIPT_DIR}/values.yaml"
 TEMPLATES_DIR="${SCRIPT_DIR}/templates"
 OUTPUT_DIR="${SCRIPT_DIR}/output"
+SECRETS_FILE="${SCRIPT_DIR}/../secrets.txt"
 
 echo "=== Kubernetes Config Generator ==="
+
+# Cargar credenciales y AWSAccountId desde secrets.txt
+ACCOUNT_ID=""
+if [ -f "$SECRETS_FILE" ]; then
+    echo "Leyendo $SECRETS_FILE..."
+    while IFS='=' read -r key value || [ -n "$key" ]; do
+        key="${key//[[:space:]]/}"
+        [ -z "$key" ] && continue
+        [[ "$key" == \#* ]] && continue
+        value="${value#"${value%%[![:space:]]*}"}"
+        value="${value%"${value##*[![:space:]]}"}"
+        [ -z "$value" ] && continue
+        export "$key=$value"
+    done < "$SECRETS_FILE"
+
+    # Compatibilidad con claves AWS en minusculas.
+    [ -n "${aws_access_key_id:-}" ] && export AWS_ACCESS_KEY_ID="$aws_access_key_id"
+    [ -n "${aws_secret_access_key:-}" ] && export AWS_SECRET_ACCESS_KEY="$aws_secret_access_key"
+    [ -n "${aws_session_token:-}" ] && export AWS_SESSION_TOKEN="$aws_session_token"
+    [ -n "${AWS_REGION:-}" ] && export AWS_DEFAULT_REGION="$AWS_REGION"
+
+    ACCOUNT_ID="${AWSAccountId:-}"
+else
+    echo "ADVERTENCIA: No se encontro $SECRETS_FILE"
+fi
+
+aws eks update-kubeconfig --region "${AWS_REGION:-us-east-1}" --name laboratorio-ep02-eks
 
 # Verificar que exista values.yaml
 if [ ! -f "$VALUES_FILE" ]; then
     echo "Error: No se encontro values.yaml"
     exit 1
+fi
+
+# Reemplazar el AWSAccountId de values.yaml por la cuenta real de secrets.txt
+if [ -n "$ACCOUNT_ID" ]; then
+    echo "Reemplazando AWSAccountId por ${ACCOUNT_ID} en values.yaml..."
+    sed -E "s/[A-Za-z0-9]+\.dkr\.ecr\./${ACCOUNT_ID}.dkr.ecr./g" "$VALUES_FILE" > "$VALUES_FILE.tmp"
+    mv "$VALUES_FILE.tmp" "$VALUES_FILE"
+else
+    echo "ADVERTENCIA: AWSAccountId no definido en $SECRETS_FILE, values.yaml queda sin cambios"
 fi
 
 # Crear directorio de salida

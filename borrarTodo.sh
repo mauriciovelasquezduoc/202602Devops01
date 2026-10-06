@@ -3,11 +3,11 @@
 # ETAPA 12 — Limpieza total del laboratorio
 # ==================================================================
 # Elimina TODO lo creado en las etapas 01-11:
-#   - Namespace "ep03" (Pods, Services, Deployments, HPA, ELB)
-#   - Stack CloudFormation "laboratorio-ep03-eks" (cluster + nodegroup + addons)
-#   - Stack CloudFormation "laboratorio-ep03-vpc" (VPC + subnets + endpoints)
-#   - Repositorios ECR (ep03-db, ep03-backend, ep03-frontend)
-#   - Repositorios GitHub (202601_ep03_db, backend, frontend)
+#   - Namespace "ep02" (Pods, Services, Deployments, HPA, ELB)
+#   - Stack CloudFormation "laboratorio-ep02-eks" (cluster + nodegroup + addons)
+#   - Stack CloudFormation "laboratorio-ep02-vpc" (VPC + subnets + endpoints)
+#   - Repositorios ECR (ep02-db, ep02-backend, ep02-frontend)
+#   - Repositorios GitHub (202601_ep02_db, backend, frontend)
 #   - Directorios locales clonados
 #   - CloudWatch Log Groups del cluster EKS
 #   - Contexto de kubeconfig
@@ -18,11 +18,11 @@
 # ==================================================================
 
 REGION="us-east-1"
-CLUSTER_NAME="laboratorio-ep03-eks"
-NAMESPACE="ep03"
-STACK_VPC="laboratorio-ep03-vpc"
-STACK_EKS="laboratorio-ep03-eks"
-NODEGROUP_NAME="laboratorio-ep03-nodegroup"
+CLUSTER_NAME="laboratorio-ep02-eks"
+NAMESPACE="ep02"
+STACK_VPC="laboratorio-ep02-vpc"
+STACK_EKS="laboratorio-ep02-eks"
+NODEGROUP_NAME="laboratorio-ep02-nodegroup"
 
 # ──────────────────────────────────────────────────────────────────
 # Determinar SCRIPT_DIR de forma portable (macOS / Linux)
@@ -83,7 +83,7 @@ fi
 echo ""
 
 # ==================================================================
-# 2. Borrar namespace "ep03" (Pods, Services, Deployments, HPA, ELB)
+# 2. Borrar namespace "ep02" (Pods, Services, Deployments, HPA, ELB)
 # ==================================================================
 echo -e "${AZUL}[2/9] Borrando namespace $NAMESPACE desde Kubernetes...${NC}"
 
@@ -173,7 +173,7 @@ echo ""
 # ==================================================================
 echo -e "${AZUL}[5/9] Borrando repositorios ECR...${NC}"
 
-for repo in ep03-db ep03-backend ep03-frontend; do
+for repo in ep02-db ep02-backend ep02-frontend; do
   if aws ecr describe-repositories --repository-name "$repo" --region "$REGION" &>/dev/null 2>&1; then
     aws ecr delete-repository \
       --repository-name "$repo" \
@@ -196,7 +196,7 @@ USER_GITHUB=$(gh api user --jq '.login' 2>/dev/null || echo "")
 
 if [ -n "$USER_GITHUB" ]; then
   echo "  Usuario GitHub detectado: $USER_GITHUB"
-  for repo in 202601_ep03_db 202601_ep03_backend 202601_ep03_frontend; do
+  for repo in 202601_ep02_db 202601_ep02_backend 202601_ep02_frontend; do
     FULL_NAME="$USER_GITHUB/$repo"
     if gh repo view "$FULL_NAME" --json name &>/dev/null 2>&1; then
       gh repo delete "$FULL_NAME" --yes 2>/dev/null && \
@@ -227,7 +227,7 @@ BASE_PASO01=$(cd "$BASE_PASO01" 2>/dev/null && pwd || echo "$BASE_PASO01")
 
 # Borrar directorios clonados en paso-00
 if [ -d "$BASE_PASO00" ]; then
-  for repo_dir in "$BASE_PASO00"/202601_ep03_*; do
+  for repo_dir in "$BASE_PASO00"/202601_ep02_*; do
     if [ -d "$repo_dir" ]; then
       rm -rf "$repo_dir"
       echo -e "  ${VERDE}Eliminado: $repo_dir${NC}"
@@ -239,7 +239,7 @@ fi
 
 # Borrar .git de los repos en paso-01
 if [ -d "$BASE_PASO01" ]; then
-  for repo_dir in "$BASE_PASO01"/202601_ep03_*; do
+  for repo_dir in "$BASE_PASO01"/202601_ep02_*; do
     if [ -d "$repo_dir/.git" ]; then
       rm -rf "$repo_dir/.git"
       echo -e "  ${VERDE}.git eliminado: $repo_dir${NC}"
@@ -329,7 +329,7 @@ for stack in "$STACK_EKS" "$STACK_VPC"; do
 done
 
 # Verificar ECR repos
-for repo in ep03-db ep03-backend ep03-frontend; do
+for repo in ep02-db ep02-backend ep02-frontend; do
   if aws ecr describe-repositories --repository-name "$repo" --region "$REGION" &>/dev/null 2>&1; then
     echo -e "  ${ROJO}❌ ECR $repo: aún existe${NC}"
     ERRORES=$((ERRORES + 1))
@@ -340,7 +340,7 @@ done
 
 # Verificar GitHub repos
 if [ -n "$USER_GITHUB" ]; then
-  for repo in 202601_ep03_db 202601_ep03_backend 202601_ep03_frontend; do
+  for repo in 202601_ep02_db 202601_ep02_backend 202601_ep02_frontend; do
     FULL_NAME="$USER_GITHUB/$repo"
     if gh repo view "$FULL_NAME" --json name &>/dev/null 2>&1; then
       echo -e "  ${ROJO}❌ GitHub $FULL_NAME: aún existe${NC}"
@@ -368,8 +368,8 @@ echo "  Borrado:"
 echo "    [X] Namespace $NAMESPACE (Pods, Services, ELB, HPA)"
 echo "    [X] Stack $STACK_EKS (EKS + NodeGroup + Addons)"
 echo "    [X] Stack $STACK_VPC (VPC + Subnets + Endpoints)"
-echo "    [X] Repositorios ECR (ep03-db, ep03-backend, ep03-frontend)"
-echo "    [X] Repositorios en GitHub (202601_ep03_*)"
+echo "    [X] Repositorios ECR (ep02-db, ep02-backend, ep02-frontend)"
+echo "    [X] Repositorios en GitHub (202601_ep02_*)"
 echo "    [X] Directorios locales de repos clonados"
 echo "    [X] CloudWatch Log Groups del cluster"
 echo "    [X] kubeconfig limpiado"

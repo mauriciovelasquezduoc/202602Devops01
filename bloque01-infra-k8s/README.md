@@ -1,10 +1,11 @@
 # Bloque 01 - Infraestructura K8s
 
-Este bloque consolida la preparacion de infraestructura de `guia-03` bloques 1, 2 y 3 para llegar rapidamente a un entorno Kubernetes listo en AWS.
+Este bloque consolida la preparacion de infraestructura de `guia` bloques 1, 2 y 3 para llegar rapidamente a un entorno Kubernetes listo en AWS.
 
 El script principal es:
 
 ```bash
+cd bloque01-infra-k8s
 bash ejecutar.sh
 ```
 
@@ -12,11 +13,11 @@ El script es idempotente: si la VPC, el cluster EKS, el NodeGroup o los addons y
 
 ## Que prepara
 
-- VPC Multi-AZ `laboratorio-ep03` con subnets publicas, privadas de aplicacion y privadas de datos.
+- VPC Multi-AZ `laboratorio-ep02` con subnets publicas, privadas de aplicacion y privadas de datos.
 - VPC Endpoints para servicios requeridos por EKS/ECR/CloudWatch.
-- Cluster EKS `laboratorio-ep03-eks`.
+- Cluster EKS `laboratorio-ep02-eks`.
 - Addons EKS: `vpc-cni`, `coredns`, `kube-proxy` y `metrics-server`.
-- NodeGroup SPOT `laboratorio-ep03-nodegroup` en subnets privadas de aplicacion.
+- NodeGroup SPOT `laboratorio-ep02-nodegroup` en subnets privadas de aplicacion.
 - Kubeconfig local apuntando al cluster.
 - Validacion de nodos, pods de sistema, Metrics Server y CloudWatch logs.
 - Reporte Markdown en `reports/` con resumen y comandos de evidencia.
@@ -27,7 +28,7 @@ El script es idempotente: si la VPC, el cluster EKS, el NodeGroup o los addons y
 flowchart TB
     User[Operador / ejecutar.sh] --> AWS[AWS Account us-east-1]
 
-    subgraph VPC[VPC laboratorio-ep03 10.0.0.0/16]
+    subgraph VPC[VPC laboratorio-ep02 10.0.0.0/16]
         IGW[Internet Gateway]
 
         subgraph Public[Subnets publicas]
@@ -53,10 +54,10 @@ flowchart TB
     PrivateApp --> Endpoints
     PrivateData --> Endpoints
 
-    subgraph EKS[EKS laboratorio-ep03-eks]
+    subgraph EKS[EKS laboratorio-ep02-eks]
         ControlPlane[Control Plane EKS]
         Addons[Addons: vpc-cni, coredns, kube-proxy, metrics-server]
-        NodeGroup[NodeGroup SPOT laboratorio-ep03-nodegroup]
+        NodeGroup[NodeGroup SPOT laboratorio-ep02-nodegroup]
         Nodes[Worker nodes t3.large]
     end
 
@@ -75,17 +76,17 @@ Puedes sobreescribir valores por variable de entorno:
 
 ```bash
 REGION=us-east-1 \
-VPC_STACK=laboratorio-ep03-vpc \
-EKS_STACK=laboratorio-ep03-eks \
-CLUSTER_NAME=laboratorio-ep03-eks \
-NODEGROUP_NAME=laboratorio-ep03-nodegroup \
+VPC_STACK=laboratorio-ep02-vpc \
+EKS_STACK=laboratorio-ep02-eks \
+CLUSTER_NAME=laboratorio-ep02-eks \
+NODEGROUP_NAME=laboratorio-ep02-nodegroup \
 bash ejecutar.sh
 ```
 
 ## Archivos locales usados
 
-- `templates/vpc.yaml`: template CloudFormation de VPC copiado desde guia-03.
-- `templates/fase_4_cluster_eks.yaml`: template CloudFormation de EKS copiado desde guia-03.
+- `templates/vpc.yaml`: template CloudFormation de VPC copiado desde guia.
+- `templates/fase_4_cluster_eks.yaml`: template CloudFormation de EKS copiado desde guia.
 - `../secrets.txt`: credenciales/variables de laboratorio ubicadas en la raiz de `guia-04`, si existe.
 
 ## Salida esperada
@@ -103,8 +104,8 @@ Al finalizar deberias ver:
 ## Comandos de verificacion
 
 ```bash
-aws eks describe-cluster --region us-east-1 --name laboratorio-ep03-eks --query 'cluster.{name:name,status:status,version:version}' --output table
-aws eks describe-nodegroup --region us-east-1 --cluster-name laboratorio-ep03-eks --nodegroup-name laboratorio-ep03-nodegroup --query 'nodegroup.{name:nodegroupName,status:status,capacity:capacityType}' --output table
+aws eks describe-cluster --region us-east-1 --name laboratorio-ep02-eks --query 'cluster.{name:name,status:status,version:version}' --output table
+aws eks describe-nodegroup --region us-east-1 --cluster-name laboratorio-ep02-eks --nodegroup-name laboratorio-ep02-nodegroup --query 'nodegroup.{name:nodegroupName,status:status,capacity:capacityType}' --output table
 kubectl get nodes -o wide
 kubectl get pods -n kube-system -o wide
 kubectl top nodes

@@ -9,8 +9,8 @@ beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }))
 afterEach(() => server.resetHandlers())
 afterAll(() => server.close())
 
-describe('API — ep03.js', () => {
-  it('getAlumnos retorna la lista de ep03', async () => {
+describe('API — ep02.js', () => {
+  it('getAlumnos retorna la lista de ep02', async () => {
     const { data } = await getAlumnos()
     expect(data).toHaveLength(3)
     expect(data[0]).toMatchObject({ id: 1, nombre: 'Juan', apellido: 'Pérez' })

@@ -6,7 +6,7 @@ import CsvPanel    from './components/CsvPanel'
 
 export default function App() {
   const {
-    ep03, loading, error, success,
+    ep02, loading, error, success,
     crear, actualizar, eliminar, exportar, importar
   } = useAlumnos()
 
@@ -36,12 +36,12 @@ export default function App() {
       {/* ── Stats ── */}
       <div className="stats-bar">
         <div className="stat-card">
-          <div className="stat-num">{ep03.length}</div>
-          <div className="stat-label">Total ep03</div>
+          <div className="stat-num">{ep02.length}</div>
+          <div className="stat-label">Total ep02</div>
         </div>
         <div className="stat-card">
           <div className="stat-num">
-            {new Set(ep03.map(a => a.apellido)).size}
+            {new Set(ep02.map(a => a.apellido)).size}
           </div>
           <div className="stat-label">Apellidos únicos</div>
         </div>
@@ -60,7 +60,7 @@ export default function App() {
       {/* ── Tabla ── */}
       <div className="card">
         <div className="card-title">
-          📋 Lista de ep03
+          📋 Lista de ep02
           {loading && <span style={{ fontSize: '.8rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>
             Cargando...
           </span>}
@@ -70,7 +70,7 @@ export default function App() {
           <div className="spinner-wrap"><div className="spinner" /></div>
         ) : (
           <AlumnoTable
-            ep03={ep03}
+            ep02={ep02}
             onEdit={setEditing}
             onDelete={eliminar}
           />
@@ -79,7 +79,7 @@ export default function App() {
 
       {/* ── Footer ── */}
       <footer style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '.8rem', marginTop: '1rem' }}>
-        API: <code>{import.meta.env.VITE_API_URL || 'http://localhost:8080'}/ep03</code>
+        API: <code>{import.meta.env.VITE_API_URL || 'http://localhost:8080'}/ep02</code>
       </footer>
     </div>
   )

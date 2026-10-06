@@ -1,4 +1,4 @@
-package cl.duocuc.ep03.cucumber;
+package cl.duocuc.ep02.cucumber;
 
 import static io.cucumber.junit.platform.engine.Constants.GLUE_PROPERTY_NAME;
 import static io.cucumber.junit.platform.engine.Constants.PLUGIN_PROPERTY_NAME;
@@ -11,7 +11,7 @@ import org.junit.platform.suite.api.Suite;
 @Suite
 @IncludeEngines("cucumber")
 @SelectClasspathResource("features")
-@ConfigurationParameter(key = GLUE_PROPERTY_NAME, value = "cl.duocuc.ep03.cucumber")
+@ConfigurationParameter(key = GLUE_PROPERTY_NAME, value = "cl.duocuc.ep02.cucumber")
 @ConfigurationParameter(
         key = PLUGIN_PROPERTY_NAME,
         value =

@@ -1,4 +1,4 @@
-# README-template — Frontend Web (202601_ep03_frontend)
+# README-template — Frontend Web (202601_ep02_frontend)
 
 > **Instrucciones:** Completa cada sección con las evidencias generadas en los reportes de `bloque06/docs/reports/`.  
 > Las capturas de pantalla van en la carpeta `docs/`.
@@ -11,7 +11,7 @@
 
 **Tecnología:** HTML/CSS/JS estático servido con Nginx  
 **Puerto:** 80  
-**Backend que consume:** `http://ep03-backend:3001` (DNS interno de Kubernetes)  
+**Backend que consume:** `http://ep02-backend:3001` (DNS interno de Kubernetes)  
 **Expuesto mediante:** Service tipo LoadBalancer (URL pública)
 
 ---
@@ -20,7 +20,7 @@
 
 | Componente | Valor |
 |---|---|
-| **Clúster EKS** | `laboratorio-ep03-eks` (ACTIVE) |
+| **Clúster EKS** | `laboratorio-ep02-eks` (ACTIVE) |
 | **Service tipo** | LoadBalancer (público, internet-facing) |
 | **Puerto contenedor** | 80 |
 | **Anotación** | `service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing` |
@@ -28,9 +28,9 @@
 <!-- Inserta captura del service -->
 
 ```
-$ kubectl get svc -n ep03 -l app=ep03-frontend
+$ kubectl get svc -n ep02 -l app=ep02-frontend
 NAME               TYPE           CLUSTER-IP    EXTERNAL-IP
-ep03-frontend    LoadBalancer   172.20.123.7  a5d87d...us-east-1.elb.amazonaws.com
+ep02-frontend    LoadBalancer   172.20.123.7  a5d87d...us-east-1.elb.amazonaws.com
 ```
 
 ---
@@ -90,9 +90,9 @@ metrics:
 ### Evidencia
 
 ```
-$ kubectl get hpa ep03-frontend-hpa -n ep03
+$ kubectl get hpa ep02-frontend-hpa -n ep02
 NAME                   REFERENCE           TARGETS       MINPODS MAXPODS REPLICAS
-ep03-frontend-hpa    Deployment/frontend cpu: 2%/60%   2       6       2
+ep02-frontend-hpa    Deployment/frontend cpu: 2%/60%   2       6       2
 ```
 
 ---
@@ -114,14 +114,14 @@ http://a5d87d388be4c440192b1e41aebf7073-1319560992.us-east-1.elb.amazonaws.com
 ### Auto-healing
 
 ```
-$ kubectl delete pod ep03-frontend-757984d475-fs467 -n ep03
+$ kubectl delete pod ep02-frontend-757984d475-fs467 -n ep02
 pod eliminado... recreado en ~5s ✅
 ```
 
 ### Logs
 
 ```
-$ kubectl logs deployment/ep03-frontend -n ep03 --tail=5
+$ kubectl logs deployment/ep02-frontend -n ep02 --tail=5
 ...
 ```
 
@@ -130,10 +130,10 @@ $ kubectl logs deployment/ep03-frontend -n ep03 --tail=5
 ## 📈 Métricas
 
 ```
-$ kubectl top pods -n ep03 -l app=ep03-frontend
+$ kubectl top pods -n ep02 -l app=ep02-frontend
 NAME                               CPU(cores)   MEMORY(bytes)
-ep03-frontend-757984d475-fs467   2m           64Mi
-ep03-frontend-757984d475-l56nj   3m           58Mi
+ep02-frontend-757984d475-fs467   2m           64Mi
+ep02-frontend-757984d475-l56nj   3m           58Mi
 ```
 
 ---

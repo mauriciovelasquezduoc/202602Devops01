@@ -4,8 +4,31 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPOS_FILE="${SCRIPT_DIR}/repositorios.yaml"
+SECRETS_FILE="${SCRIPT_DIR}/../secrets.txt"
 
 echo "=== AWS ECR Repository Manager ==="
+
+# Cargar credenciales AWS desde secrets.txt
+if [ -f "$SECRETS_FILE" ]; then
+    echo "Cargando credenciales desde $SECRETS_FILE"
+    while IFS='=' read -r key value || [ -n "$key" ]; do
+        key="${key//[[:space:]]/}"
+        [ -z "$key" ] && continue
+        [[ "$key" == \#* ]] && continue
+        value="${value#"${value%%[![:space:]]*}"}"
+        value="${value%"${value##*[![:space:]]}"}"
+        [ -z "$value" ] && continue
+        export "$key=$value"
+    done < "$SECRETS_FILE"
+
+    # Compatibilidad con claves en minusculas.
+    [ -n "${aws_access_key_id:-}" ] && export AWS_ACCESS_KEY_ID="$aws_access_key_id"
+    [ -n "${aws_secret_access_key:-}" ] && export AWS_SECRET_ACCESS_KEY="$aws_secret_access_key"
+    [ -n "${aws_session_token:-}" ] && export AWS_SESSION_TOKEN="$aws_session_token"
+    [ -n "${AWS_REGION:-}" ] && export AWS_DEFAULT_REGION="$AWS_REGION"
+else
+    echo "ADVERTENCIA: No se encontro $SECRETS_FILE, usando credenciales por defecto de AWS"
+fi
 
 # Verificar que exista repositorios.yaml
 if [ ! -f "$REPOS_FILE" ]; then
@@ -17,7 +40,7 @@ fi
 echo ""
 echo "1/4 Identificando cuenta AWS actual..."
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-REGION=$(aws configure get region || echo "us-east-1")
+REGION="${AWS_REGION:-$(aws configure get region 2>/dev/null || echo "us-east-1")}"
 ACCOUNT_ALIAS=$(aws iam list-account-aliases --query 'AccountAliases[0]' --output text 2>/dev/null || echo "sin-alias")
 
 echo "   Cuenta:     $ACCOUNT_ID"

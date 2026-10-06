@@ -12,7 +12,7 @@ plugins {
     id 'pmd'                                          // valida reglas estáticas
 }
 
-group = 'cl.duocuc.ep03'
+group = 'cl.duocuc.ep02'
 version = '1.0.0'
 
 java {
@@ -124,8 +124,8 @@ sonar {
 }
 
 pitest {
-    targetClasses         = ['cl.duocuc.ep03.*']
-    targetTests           = ['cl.duocuc.ep03.*']
+    targetClasses         = ['cl.duocuc.ep02.*']
+    targetTests           = ['cl.duocuc.ep02.*']
     junit5PluginVersion   = '1.2.1'
     mutationThreshold     = 80
     coverageThreshold     = 80
@@ -137,7 +137,7 @@ pitest {
 
 contracts {
     testFramework         = org.springframework.cloud.contract.verifier.config.TestFramework.JUNIT5
-    baseClassForTests     = 'cl.duocuc.ep03.contract.AlumnoContractBase'
+    baseClassForTests     = 'cl.duocuc.ep02.contract.AlumnoContractBase'
     contractsDslDir       = file('src/test/resources/contracts')
 }
 

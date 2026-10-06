@@ -1,4 +1,4 @@
-package cl.duocuc.ep03;
+package cl.duocuc.ep02;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

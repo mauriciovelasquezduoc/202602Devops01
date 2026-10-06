@@ -51,9 +51,9 @@ Abrir Docker Desktop y verificar que los 3 contenedores estén en estado **Runni
 
 | Contenedor       | Puerto | Estado esperado |
 | ---------------- | ------ | --------------- |
-| ep03-db       | 5432   | Running (verde) |
-| ep03-backend  | 8080   | Running (verde) |
-| ep03-frontend | 80     | Running (verde) |
+| ep02-db       | 5432   | Running (verde) |
+| ep02-backend  | 8080   | Running (verde) |
+| ep02-frontend | 80     | Running (verde) |
 
 ## Probar la Aplicación
 
@@ -68,16 +68,16 @@ Verás la interfaz del Gestor de Alumnos con la lista de productos.
 | Servicio | URL                           | Descripción          |
 | -------- | ----------------------------- | --------------------- |
 | Frontend | http://localhost              | Interfaz web          |
-| Backend  | http://localhost:8080/ep03 | API REST              |
+| Backend  | http://localhost:8080/ep02 | API REST              |
 | Database | localhost:5432                | PostgreSQL (solo red) |
 
 ## Comandos Útiles
 
 ```bash
 # Ver logs de un servicio
-docker compose logs -f ep03-db
-docker compose logs -f ep03-backend
-docker compose logs -f ep03-frontend
+docker compose logs -f ep02-db
+docker compose logs -f ep02-backend
+docker compose logs -f ep02-frontend
 
 # Ver todos los contenedores corriendo
 docker ps
@@ -96,13 +96,13 @@ docker compose up -d --build
 
 ### Backend no conecta a la DB
 
-- Verificar que `ep03-db` esté corriendo y verde
-- Verificar logs: `docker compose logs ep03-db`
+- Verificar que `ep02-db` esté corriendo y verde
+- Verificar logs: `docker compose logs ep02-db`
 
 ### Frontend no muestra datos
 
-- Verificar que `ep03-backend` esté corriendo
-- Verificar logs: `docker compose logs ep03-backend`
+- Verificar que `ep02-backend` esté corriendo
+- Verificar logs: `docker compose logs ep02-backend`
 - Abrir consola del navegador (F12) para ver errores
 
 ### Puerto 80 ocupado
@@ -135,7 +135,7 @@ docker compose up -d --build
 │  └──────────────┘    └──────────────┘    └──────────────┘   │
 │         │                   │                   │            │
 │         └───────────────────┴───────────────────┘            │
-│                     ep03-network                          │
+│                     ep02-network                          │
 └─────────────────────────────────────────────────────────────┘
                           │
                           ▼

@@ -3,7 +3,7 @@
 import '@testing-library/jest-dom'
 
 // Configurar MSW para usar rutas relativas en tests
-// El frontend usa axios.create({ baseURL: '/ep03' })
+// El frontend usa axios.create({ baseURL: '/ep02' })
 // MSW intercepta basado en la URL completa, así que necesitamos configurarlo
 import { setupServer } from 'msw/node'
 import { handlers } from './mocks/handlers'

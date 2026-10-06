@@ -1,4 +1,4 @@
-package cl.duocuc.ep03;
+package cl.duocuc.ep02;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 

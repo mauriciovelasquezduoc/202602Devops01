@@ -1,4 +1,4 @@
-package cl.duocuc.ep03.domain;
+package cl.duocuc.ep02.domain;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

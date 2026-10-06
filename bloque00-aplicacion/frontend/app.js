@@ -1,5 +1,5 @@
 /**
- * Frontend simple para CRUD de ep03 - Gestor de Alumnos.
+ * Frontend simple para CRUD de ep02 - Gestor de Alumnos.
  */
 
 // Determinar la URL base de la API según el host

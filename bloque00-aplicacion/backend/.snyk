@@ -1,4 +1,4 @@
-# Snyk policy file — ep03-app (Gradle)
+# Snyk policy file — ep02-app (Gradle)
 # Documentación: https://docs.snyk.io/snyk-cli/test-for-vulnerabilities/the-.snyk-file
 
 version: v1.25.0

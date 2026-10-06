@@ -1,6 +1,6 @@
-# ep03-backend
+# ep02-backend
 
-Backend REST de la aplicacion **Alumnos**, construido con **Spring Boot 3.5** y **Java 21**. Expone una API para gestion de ep03 con soporte para CRUD, exportacion/importacion CSV y documentacion OpenAPI integrada.
+Backend REST de la aplicacion **Alumnos**, construido con **Spring Boot 3.5** y **Java 21**. Expone una API para gestion de ep02 con soporte para CRUD, exportacion/importacion CSV y documentacion OpenAPI integrada.
 
 
 ---
@@ -29,10 +29,10 @@ Backend REST de la aplicacion **Alumnos**, construido con **Spring Boot 3.5** y 
 ## Estructura del proyecto
 
 ```
-ep03-backend/
+ep02-backend/
 ├── src/
 │   ├── main/
-│   │   ├── java/cl/duocuc/ep03/
+│   │   ├── java/cl/duocuc/ep02/
 │   │   │   ├── application/          # Capa de servicio (casos de uso)
 │   │   │   │   └── AlumnoService.java
 │   │   │   ├── config/               # Seguridad y manejo de excepciones
@@ -53,7 +53,7 @@ ep03-backend/
 │   └── test/
 │       ├── java/                     # Tests unitarios, contrato y BDD
 │       └── resources/
-│           ├── contracts/ep03/    # Contratos Spring Cloud Contract
+│           ├── contracts/ep02/    # Contratos Spring Cloud Contract
 │           ├── features/             # Escenarios Cucumber
 │           └── application-test.yml
 ├── config/pmd/                       # Reglas PMD personalizadas
@@ -80,19 +80,19 @@ ep03-backend/
 
 ## Inicio rapido con Docker
 
-### 1. Asegurarse que ep03-db esta corriendo
+### 1. Asegurarse que ep02-db esta corriendo
 
-Este compose asume que `ep03-db` ya esta levantado. Si no lo esta:
+Este compose asume que `ep02-db` ya esta levantado. Si no lo esta:
 
 ```bash
-cd ../ep03-db
+cd ../ep02-db
 docker compose up -d
 ```
 
 Verificar que esta healthy:
 
 ```bash
-docker ps --filter "name=ep03-db"
+docker ps --filter "name=ep02-db"
 ```
 
 ### 2. Construir y levantar la app
@@ -111,13 +111,13 @@ Resultado esperado:
 
 ```
 NAME          STATUS       PORTS
-ep03-backend   Up X seconds 0.0.0.0:8080->8080/tcp
+ep02-backend   Up X seconds 0.0.0.0:8080->8080/tcp
 ```
 
 ### 4. Verificar que la app responde
 
 ```bash
-curl http://localhost:8080/ep03
+curl http://localhost:8080/ep02
 ```
 
 ### 5. Detener la app
@@ -156,12 +156,12 @@ Base URL: `http://localhost:8080`
 
 | Metodo | Endpoint          | Descripcion                    |
 | ------ | ----------------- | ------------------------------ |
-| GET    | `/ep03`        | Listar todos los ep03       |
-| POST   | `/ep03`        | Crear un nuevo alumno          |
-| PUT    | `/ep03/{id}`   | Actualizar un alumno existente |
-| DELETE | `/ep03/{id}`   | Eliminar un alumno             |
-| GET    | `/ep03/export` | Exportar ep03 en formato CSV |
-| POST   | `/ep03/import` | Importar ep03 desde CSV     |
+| GET    | `/ep02`        | Listar todos los ep02       |
+| POST   | `/ep02`        | Crear un nuevo alumno          |
+| PUT    | `/ep02/{id}`   | Actualizar un alumno existente |
+| DELETE | `/ep02/{id}`   | Eliminar un alumno             |
+| GET    | `/ep02/export` | Exportar ep02 en formato CSV |
+| POST   | `/ep02/import` | Importar ep02 desde CSV     |
 
 ### Modelo de datos
 
@@ -175,38 +175,38 @@ Base URL: `http://localhost:8080`
 
 ### Ejemplos de uso
 
-**Listar ep03**
+**Listar ep02**
 ```bash
-curl http://localhost:8080/ep03
+curl http://localhost:8080/ep02
 ```
 
 **Crear alumno**
 ```bash
-curl -X POST http://localhost:8080/ep03 \
+curl -X POST http://localhost:8080/ep02 \
   -H "Content-Type: application/json" \
   -d '{"nombre": "Laura", "apellido": "Vega"}'
 ```
 
 **Actualizar alumno**
 ```bash
-curl -X PUT http://localhost:8080/ep03/1 \
+curl -X PUT http://localhost:8080/ep02/1 \
   -H "Content-Type: application/json" \
   -d '{"nombre": "Laura", "apellido": "Vega Soto"}'
 ```
 
 **Eliminar alumno**
 ```bash
-curl -X DELETE http://localhost:8080/ep03/1
+curl -X DELETE http://localhost:8080/ep02/1
 ```
 
 **Exportar CSV**
 ```bash
-curl http://localhost:8080/ep03/export
+curl http://localhost:8080/ep02/export
 ```
 
 **Importar CSV**
 ```bash
-curl -X POST http://localhost:8080/ep03/import \
+curl -X POST http://localhost:8080/ep02/import \
   -H "Content-Type: text/plain" \
   -d "Laura,Vega
 Pedro,Soto
@@ -240,9 +240,9 @@ Ana,Lopez"
 | Variable                    | Descripcion                        | Ejemplo                                    |
 | --------------------------- | ---------------------------------- | ------------------------------------------ |
 | `SPRING_PROFILES_ACTIVE`    | Perfil activo                      | `prod`                                     |
-| `DB_URL`                    | JDBC URL de PostgreSQL             | `jdbc:postgresql://10.0.2.5:5432/ep03`  |
-| `DB_USERNAME`               | Usuario de la base de datos        | `ep03_user`                             |
-| `DB_PASSWORD`               | Contrasena de la base de datos     | `ep03_pass`                             |
+| `DB_URL`                    | JDBC URL de PostgreSQL             | `jdbc:postgresql://10.0.2.5:5432/ep02`  |
+| `DB_USERNAME`               | Usuario de la base de datos        | `ep02_user`                             |
+| `DB_PASSWORD`               | Contrasena de la base de datos     | `ep02_pass`                             |
 | `CORS_ORIGINS`              | Origenes permitidos para CORS      | `http://18.234.56.78`                      |
 
 ### Puertos
@@ -260,7 +260,7 @@ Ana,Lopez"
 | ------------ | --------------------- |
 | Base build   | `gradle:8.13.0-jdk21` |
 | Base runtime | `eclipse-temurin:21-jre-jammy` |
-| Imagen ECR   | `ep03-backend:latest`  |
+| Imagen ECR   | `ep02-backend:latest`  |
 | Puerto       | `8080`                |
 | Usuario      | `appuser` (no-root)   |
 | Healthcheck  | `GET /actuator/health` |
@@ -275,7 +275,7 @@ El Dockerfile usa dos etapas para minimizar el tamano de la imagen final:
 ### Construir la imagen manualmente
 
 ```bash
-docker build -t ep03-backend:latest .
+docker build -t ep02-backend:latest .
 ```
 
 ### Publicar en ECR
@@ -286,8 +286,8 @@ aws ecr get-login-password --region us-east-1 \
   | docker login --username AWS --password-stdin <ECR_REGISTRY>
 
 # Tag y push
-docker tag ep03-backend:latest <ECR_REGISTRY>/ep03-backend:latest
-docker push <ECR_REGISTRY>/ep03-backend:latest
+docker tag ep02-backend:latest <ECR_REGISTRY>/ep02-backend:latest
+docker push <ECR_REGISTRY>/ep02-backend:latest
 ```
 
 ---
@@ -324,7 +324,7 @@ Umbral minimo requerido: **80% instrucciones y 80% ramas**
 
 ### Tests de aceptacion (Cucumber BDD)
 
-Los escenarios estan en `src/test/resources/features/ep03.feature` y se ejecutan como parte del ciclo normal de tests.
+Los escenarios estan en `src/test/resources/features/ep02.feature` y se ejecutan como parte del ciclo normal de tests.
 
 ---
 
@@ -374,11 +374,11 @@ Esta imagen forma parte de la infraestructura de 3 capas del sistema Alumnos:
 ```
 Internet
    |
-EC2-Web   (ep03-frontend:latest)    — Capa Web    — Puerto 80
+EC2-Web   (ep02-frontend:latest)    — Capa Web    — Puerto 80
    |
-EC2-App   (ep03-backend:latest)    — Capa App    — Puerto 8080  <-- este servicio
+EC2-App   (ep02-backend:latest)    — Capa App    — Puerto 8080  <-- este servicio
    |
-EC2-Datos (ep03-db:latest)  — Capa Datos  — Puerto 5432
+EC2-Datos (ep02-db:latest)  — Capa Datos  — Puerto 5432
 ```
 
 - Desplegada en `Subnet-App` sin acceso a internet
@@ -535,8 +535,8 @@ Genera el JAR de produccion y construye la imagen Docker final, publicandola en 
 
 | Tag publicado | Ejemplo | Uso |
 |---|---|---|
-| Version semantica | `ep03-backend:v1.4.0` | Rollback, trazabilidad |
-| Latest | `ep03-backend:latest` | Despliegue automatico |
+| Version semantica | `ep02-backend:v1.4.0` | Rollback, trazabilidad |
+| Latest | `ep02-backend:latest` | Despliegue automatico |
 
 ---
 
@@ -545,16 +545,16 @@ Genera el JAR de produccion y construye la imagen Docker final, publicandola en 
 Despliega la nueva imagen en la instancia `EC2-App` sin necesidad de acceso SSH directo. La instancia esta en una subnet privada sin acceso a internet — la comunicacion se realiza exclusivamente a traves de **VPC Endpoints de SSM**.
 
 **Pasos:**
-1. Obtiene el Instance ID de `EC2-App` desde **SSM Parameter Store** (`/ep03/ec2/app`)
+1. Obtiene el Instance ID de `EC2-App` desde **SSM Parameter Store** (`/ep02/ec2/app`)
 2. Envia el comando `deploy-app.sh` a la instancia via `AWS-RunShellScript`
 3. Hace polling del estado del comando cada 10 segundos (maximo 5 minutos / 30 intentos)
 4. Si el comando termina en `Success`, imprime el output y el job finaliza exitosamente
 5. Si termina en `Failed`, `TimedOut` o `Cancelled`, imprime el error y el job falla
 
 **Comportamiento del deploy en EC2-App:**
-- Lee la IP privada de `EC2-Datos` desde SSM Parameter Store (`/ep03/ec2/datos/private-ip`)
-- Lee la IP publica de `EC2-Web` desde SSM Parameter Store (`/ep03/ec2/web/public-ip`)
-- Hace pull de `ep03-backend:latest` desde ECR via VPC Endpoint
+- Lee la IP privada de `EC2-Datos` desde SSM Parameter Store (`/ep02/ec2/datos/private-ip`)
+- Lee la IP publica de `EC2-Web` desde SSM Parameter Store (`/ep02/ec2/web/public-ip`)
+- Hace pull de `ep02-backend:latest` desde ECR via VPC Endpoint
 - Detiene y elimina el contenedor anterior
 - Levanta el nuevo contenedor con `DB_URL`, `CORS_ORIGINS` y credenciales configuradas
 

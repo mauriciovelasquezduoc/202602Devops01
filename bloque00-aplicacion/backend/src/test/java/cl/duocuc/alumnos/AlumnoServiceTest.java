@@ -1,4 +1,4 @@
-package cl.duocuc.ep03;
+package cl.duocuc.ep02;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -11,10 +11,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
-import cl.duocuc.ep03.application.AlumnoService;
-import cl.duocuc.ep03.domain.Alumno;
-import cl.duocuc.ep03.infrastructure.entity.AlumnoEntity;
-import cl.duocuc.ep03.infrastructure.repository.AlumnoRepository;
+import cl.duocuc.ep02.application.AlumnoService;
+import cl.duocuc.ep02.domain.Alumno;
+import cl.duocuc.ep02.infrastructure.entity.AlumnoEntity;
+import cl.duocuc.ep02.infrastructure.repository.AlumnoRepository;
 
 class AlumnoServiceTest {
 

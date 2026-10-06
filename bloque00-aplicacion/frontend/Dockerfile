@@ -14,8 +14,8 @@ RUN npm run test:coverage
 # Hereda de test → si los tests fallan, esta etapa nunca se ejecuta
 FROM test AS build
 RUN npm run build
-# Sin VITE_API_URL: el frontend usa rutas relativas (/ep03)
-# Nginx hace el proxy interno: /ep03 → http://backend:8080
+# Sin VITE_API_URL: el frontend usa rutas relativas (/ep02)
+# Nginx hace el proxy interno: /ep02 → http://backend:8080
 
 # ── Etapa 4: Servidor estático con Nginx ──────────────────────────────────────
 FROM nginx:1.27-alpine AS runtime

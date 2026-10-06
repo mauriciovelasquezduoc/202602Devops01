@@ -1,4 +1,4 @@
-package cl.duocuc.ep03.infrastructure.entity;
+package cl.duocuc.ep02.infrastructure.entity;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -6,7 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "ep03")
+@Table(name = "ep02")
 @Data
 @AllArgsConstructor
 @NoArgsConstructor

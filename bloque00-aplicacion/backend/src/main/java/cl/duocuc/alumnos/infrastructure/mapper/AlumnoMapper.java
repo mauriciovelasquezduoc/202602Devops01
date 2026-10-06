@@ -1,7 +1,7 @@
-package cl.duocuc.ep03.infrastructure.mapper;
+package cl.duocuc.ep02.infrastructure.mapper;
 
-import cl.duocuc.ep03.domain.Alumno;
-import cl.duocuc.ep03.infrastructure.entity.AlumnoEntity;
+import cl.duocuc.ep02.domain.Alumno;
+import cl.duocuc.ep02.infrastructure.entity.AlumnoEntity;
 
 public final class AlumnoMapper {
 

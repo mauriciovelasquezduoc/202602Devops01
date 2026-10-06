@@ -4,7 +4,7 @@ import axios from 'axios'
 // En producción cambiar por la URL pública del backend via variable de entorno
 //const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080'
 
-const api = axios.create({ baseURL: `/ep03` })
+const api = axios.create({ baseURL: `/ep02` })
 
 export const getAlumnos   = ()           => api.get('')
 export const createAlumno = (data)       => api.post('', data)
