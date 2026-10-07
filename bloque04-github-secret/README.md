@@ -15,7 +15,7 @@ Si aún no existen, crearlos ejecutando los comandos del README en `bloque00-apl
 ## Ejecutar el Script
 
 ```bash
-cd bloque04-github-secret
+cd /root/work/bloque04-github-secret
 bash crear-actualizar-secrets.sh
 ```
 

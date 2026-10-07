@@ -49,8 +49,8 @@ Esperar hasta que el contenedor esté verde en Docker Desktop.
 
 Abrir Docker Desktop y verificar que los 3 contenedores estén en estado **Running** (verde):
 
-| Contenedor       | Puerto | Estado esperado |
-| ---------------- | ------ | --------------- |
+| Contenedor    | Puerto | Estado esperado |
+| ------------- | ------ | --------------- |
 | ep02-db       | 5432   | Running (verde) |
 | ep02-backend  | 8080   | Running (verde) |
 | ep02-frontend | 80     | Running (verde) |
@@ -65,11 +65,11 @@ Verás la interfaz del Gestor de Alumnos con la lista de productos.
 
 ## Endpoints Disponibles
 
-| Servicio | URL                           | Descripción          |
-| -------- | ----------------------------- | --------------------- |
-| Frontend | http://localhost              | Interfaz web          |
+| Servicio | URL                        | Descripción          |
+| -------- | -------------------------- | --------------------- |
+| Frontend | http://localhost           | Interfaz web          |
 | Backend  | http://localhost:8080/ep02 | API REST              |
-| Database | localhost:5432                | PostgreSQL (solo red) |
+| Database | localhost:5432             | PostgreSQL (solo red) |
 
 ## Comandos Útiles
 

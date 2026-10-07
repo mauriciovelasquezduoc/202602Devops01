@@ -1,0 +1,362 @@
+# ============================================================================
+# Pipeline de calidad de código - frontend ep02 (React + Vite)
+#
+# Equivalente al pipeline del backend (calidad-codigo.yml), adaptado al stack
+# del frontend.
+#
+# UBICACIÓN (crítico): GitHub Actions SOLO ejecuta los workflows que están en
+# `.github/workflows/` en la RAIZ del repositorio. Este archivo debe quedar así:
+#
+#     <repo>/
+#     |-- .github/workflows/calidad-codigo.yml   <-- este archivo
+#     |-- package.json
+#     `-- src/
+#
+# Equivalencias backend (Gradle) -> frontend (npm):
+#   Spotless      <-> Prettier        (npm run format:check)
+#   Checkstyle/PMD<-> ESLint          (npm run lint)
+#   Test (JUnit)  <-> Vitest          (npm test)
+#   PIT (mutación)<-> Stryker         (npm run test:mutation)
+#   JaCoCo        <-> cobertura v8    (npm run test:coverage)
+#   SonarQube     <-> SonarCloud      (sonarcloud-github-action)
+#   Snyk          <-> Snyk            (snyk test)
+#   Docker+Trivy  <-> Docker+Trivy
+#   DAST (ZAP)    <-> DAST (ZAP)
+#   Gatling/JMeter<-> Lighthouse      (rendimiento del frontend)
+#
+# Secrets necesarios (Settings > Secrets and variables > Actions):
+#   SONAR_TOKEN, SNYK_TOKEN
+# ============================================================================
+
+name: Calidad de código
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: calidad-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # ============================================================
+  # 1. PRETTIER - formato de código
+  # ============================================================
+  prettier:
+    name: Prettier (formato de código)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Instalar dependencias
+        run: npm install
+
+      - name: Verificar formato con Prettier
+        run: npm run format:check
+
+  # ============================================================
+  # 2. ESLINT - convenciones y code smells
+  # ============================================================
+  eslint:
+    name: ESLint (lint / convenciones)
+    needs: prettier
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Instalar dependencias
+        run: npm install
+
+      - name: Analizar con ESLint
+        run: npm run lint
+
+      - name: Subir reporte de ESLint
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eslint-report
+          path: reports/eslint/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # ============================================================
+  # 3. TEST - pruebas unitarias (Vitest)
+  # ============================================================
+  test:
+    name: Pruebas unitarias (Vitest)
+    needs: eslint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Instalar dependencias
+        run: npm install
+
+      - name: Ejecutar pruebas unitarias
+        run: npm test
+
+  # ============================================================
+  # 4. COVERAGE - cobertura de pruebas (v8, umbral 90%)
+  # ============================================================
+  coverage:
+    name: Cobertura (Vitest v8)
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Instalar dependencias
+        run: npm install
+
+      - name: Verificar cobertura (umbral 90%)
+        run: npm run test:coverage
+
+      - name: Subir reporte de cobertura
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # ============================================================
+  # 5. MUTATION - pruebas de mutación (Stryker)
+  # ============================================================
+  mutation:
+    name: Mutación (Stryker)
+    needs: coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Instalar dependencias
+        run: npm install
+
+      - name: Restaurar incremental de Stryker (cache)
+        uses: actions/cache@v4
+        with:
+          path: reports/stryker-incremental.json
+          key: stryker-incremental-${{ github.ref }}-${{ github.sha }}
+          restore-keys: |
+            stryker-incremental-${{ github.ref }}-
+            stryker-incremental-
+
+      - name: Ejecutar pruebas de mutación con Stryker
+        run: npm run test:mutation
+
+      - name: Subir reporte de Stryker
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-report
+          path: reports/mutation/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # ============================================================
+  # 6. SONARQUBE - calidad (SonarCloud)
+  # ============================================================
+  sonarqube:
+    name: SonarCloud (calidad)
+    needs: mutation
+    runs-on: ubuntu-latest
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configurar Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Instalar dependencias
+        run: npm install
+
+      - name: Generar cobertura (lcov)
+        run: npm run test:coverage
+
+      - name: Aviso si falta SONAR_TOKEN
+        if: ${{ env.SONAR_TOKEN == '' }}
+        run: echo "::warning::SONAR_TOKEN no configurado; se omite el análisis de SonarCloud."
+
+      - name: Análisis con SonarCloud
+        if: ${{ env.SONAR_TOKEN != '' }}
+        uses: SonarSource/sonarcloud-github-action@v5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  # ============================================================
+  # 7. SNYK - seguridad de dependencias
+  # ============================================================
+  snyk:
+    name: Snyk (seguridad de dependencias)
+    needs: sonarqube
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Instalar Snyk CLI
+        run: npm install -g snyk@latest
+
+      - name: Analizar dependencias con Snyk
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          if [ -z "$SNYK_TOKEN" ]; then
+            echo "::warning::SNYK_TOKEN no configurado; se omite el análisis de Snyk."
+            exit 0
+          fi
+          snyk test --file=package.json --severity-threshold=critical
+
+  # ============================================================
+  # 8. CONTAINER - Docker + Trivy
+  # ============================================================
+  container:
+    name: Contenedor (Docker + Trivy)
+    needs: snyk
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Construir la imagen Docker
+        run: docker build -t ep02-frontend:${{ github.sha }} .
+
+      - name: Escanear la imagen con Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ep02-frontend:${{ github.sha }}
+          vuln-type: 'os'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
+
+  # ============================================================
+  # 9. DAST - OWASP ZAP (baseline)
+  # ============================================================
+  dast:
+    name: DAST (OWASP ZAP)
+    needs: container
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Instalar dependencias
+        run: npm install
+
+      - name: Construir y servir el frontend
+        run: |
+          npm run build
+          nohup npm run preview -- --port 4173 --strictPort > preview.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:4173/ >/dev/null; then echo "Frontend listo"; exit 0; fi
+            sleep 2
+          done
+          echo "El frontend no respondió a tiempo" >&2
+          cat preview.log
+          exit 1
+
+      - name: Escanear con ZAP (baseline)
+        uses: zaproxy/action-baseline@v0.15.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          target: 'http://localhost:4173'
+          cmd_options: '-i'
+          fail_action: 'true'
+          allow_issue_writing: 'false'
+
+      - name: Subir log del preview (si falla)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dast-preview-log
+          path: preview.log
+          if-no-files-found: ignore
+
+      - name: Detener el servidor
+        if: always()
+        run: pkill -f 'vite preview' || true
+
+  # ============================================================
+  # 10. PERFORMANCE - Lighthouse CI
+  # ============================================================
+  performance:
+    name: Rendimiento (Lighthouse)
+    needs: dast
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Instalar dependencias
+        run: npm install
+
+      - name: Construir el frontend
+        run: npm run build
+
+      - name: Ejecutar Lighthouse CI
+        run: npm run lighthouse
+
+      - name: Subir reporte de Lighthouse
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-report
+          path: .lighthouseci/
+          if-no-files-found: ignore
+          retention-days: 7

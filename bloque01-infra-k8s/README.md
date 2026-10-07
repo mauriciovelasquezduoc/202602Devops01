@@ -5,7 +5,7 @@ Este bloque consolida la preparacion de infraestructura de `guia` bloques 1, 2 y
 El script principal es:
 
 ```bash
-cd bloque01-infra-k8s
+cd /root/work/bloque01-infra-k8s
 bash ejecutar.sh
 ```
 

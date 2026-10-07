@@ -1,0 +1,9 @@
+node_modules/
+package-lock.json
+
+# Build y artefactos de calidad
+dist/
+coverage/
+reports/
+.lighthouseci/
+*.log

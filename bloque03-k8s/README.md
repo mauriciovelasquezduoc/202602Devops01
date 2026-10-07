@@ -55,8 +55,6 @@ FRONTEND_HPA_CPU=60
 
 ### `apply-all.sh` - Generar y aplicar
 
-
-
 ```bash
 cd /root/work/bloque03-k8s
 ./apply-all.sh

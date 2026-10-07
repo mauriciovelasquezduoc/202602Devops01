@@ -1,0 +1,601 @@
+# ============================================================================
+# Pipeline de calidad de código - backend ep02 (Gradle / Spring Boot)
+#
+# Port del pipeline Maven de referencia (calidad-codigo.yml + pom.xml) a Gradle.
+#
+# UBICACIÓN (crítico): GitHub Actions SOLO ejecuta los workflows que están en
+# `.github/workflows/` en la RAIZ del repositorio. Este archivo debe quedar así:
+#
+#     <repo>/
+#     |-- .github/workflows/calidad-codigo.yml   <-- este archivo
+#     |-- build.gradle
+#     |-- gradlew
+#     `-- src/
+#
+# Equivalencias Maven -> Gradle:
+#   spotless:check          <-> ./gradlew spotlessCheck
+#   checkstyle:check        <-> ./gradlew checkstyleMain checkstyleTest
+#   pmd:check               <-> ./gradlew pmdMain pmdTest
+#   spotbugs:check          <-> ./gradlew spotbugsMain spotbugsTest
+#   test                    <-> ./gradlew test
+#   pitest:mutationCoverage <-> ./gradlew pitest
+#   jacoco:check            <-> ./gradlew test jacocoTestReport jacocoTestCoverageVerification
+#   sonar:sonar             <-> ./gradlew sonar
+#   gatling:test            <-> ./gradlew gatlingRun
+#   jmeter (perfil)         <-> ./gradlew jmeterTest
+#
+# Secrets necesarios (Settings > Secrets and variables > Actions):
+#   SONAR_TOKEN, SNYK_TOKEN
+# ============================================================================
+
+name: Calidad de código
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: calidad-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ============================================================
+  # 1. SPOTLESS - formato de código
+  # ============================================================
+  spotless:
+    name: Spotless (formato de código)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Dar permisos a gradlew
+        run: chmod +x gradlew
+
+      - name: Verificar formato con Spotless
+        run: ./gradlew --no-daemon spotlessCheck
+
+  # ============================================================
+  # 2. CHECKSTYLE - convenciones de código
+  # ============================================================
+  checkstyle:
+    name: Checkstyle (convenciones de código)
+    needs: spotless
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Dar permisos a gradlew
+        run: chmod +x gradlew
+
+      - name: Verificar convenciones con Checkstyle
+        run: ./gradlew --no-daemon checkstyleMain checkstyleTest
+
+      - name: Subir reporte de Checkstyle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: checkstyle-report
+          path: build/reports/checkstyle/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # ============================================================
+  # 3. PMD - code smells
+  # ============================================================
+  pmd:
+    name: PMD (code smells)
+    needs: checkstyle
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Dar permisos a gradlew
+        run: chmod +x gradlew
+
+      - name: Analizar code smells con PMD
+        run: ./gradlew --no-daemon pmdMain pmdTest
+
+      - name: Subir reporte de PMD
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pmd-report
+          path: build/reports/pmd/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # ============================================================
+  # 4. SPOTBUGS - bugs en el bytecode
+  # ============================================================
+  spotbugs:
+    name: SpotBugs (bugs en el bytecode)
+    needs: pmd
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Dar permisos a gradlew
+        run: chmod +x gradlew
+
+      - name: Analizar bugs con SpotBugs
+        run: ./gradlew --no-daemon spotbugsMain spotbugsTest
+
+      - name: Subir reporte de SpotBugs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spotbugs-report
+          path: build/reports/spotbugs/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # ============================================================
+  # 5. TEST - pruebas unitarias (JUnit + Mockito)
+  # ============================================================
+  test:
+    name: Pruebas unitarias (JUnit + Mockito)
+    needs: spotbugs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Dar permisos a gradlew
+        run: chmod +x gradlew
+
+      - name: Ejecutar pruebas unitarias y de contrato
+        run: ./gradlew --no-daemon test contractTest
+
+      - name: Subir reportes de pruebas
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: |
+            build/test-results/test/
+            build/test-results/contractTest/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # ============================================================
+  # 6. MUTATION - pruebas de mutación (PIT)
+  # ============================================================
+  mutation:
+    name: Mutación (PIT)
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Dar permisos a gradlew
+        run: chmod +x gradlew
+
+      - name: Ejecutar pruebas de mutación con PIT
+        run: ./gradlew --no-daemon pitest
+
+      - name: Subir reporte de PIT
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pit-report
+          path: build/reports/pitest/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # ============================================================
+  # 7. JACOCO - cobertura de pruebas
+  # ============================================================
+  jacoco:
+    name: JaCoCo (cobertura de pruebas)
+    needs: mutation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Dar permisos a gradlew
+        run: chmod +x gradlew
+
+      - name: Verificar cobertura con JaCoCo
+        run: ./gradlew --no-daemon test jacocoTestReport jacocoTestCoverageVerification
+
+      - name: Subir reporte de JaCoCo
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: |
+            build/reports/jacoco/test/html/
+            build/reports/jacoco/test/jacocoTestReport.xml
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # ============================================================
+  # 8. SONARQUBE - calidad
+  # ============================================================
+  sonarqube:
+    name: SonarQube (calidad)
+    needs: jacoco
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configurar Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Dar permisos a gradlew
+        run: chmod +x gradlew
+
+      - name: Análisis con SonarQube
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          if [ -z "$SONAR_TOKEN" ]; then
+            echo "::warning::SONAR_TOKEN no configurado; se omite el análisis de SonarQube."
+            exit 0
+          fi
+          ./gradlew --no-daemon test jacocoTestReport sonar
+
+  # ============================================================
+  # 9. SNYK - seguridad de dependencias
+  # ============================================================
+  snyk:
+    name: Snyk (seguridad de dependencias)
+    needs: sonarqube
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Instalar Snyk CLI
+        run: npm install -g snyk@latest
+
+      - name: Analizar dependencias con Snyk
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          if [ -z "$SNYK_TOKEN" ]; then
+            echo "::warning::SNYK_TOKEN no configurado; se omite el análisis de Snyk."
+            exit 0
+          fi
+          snyk test --file=build.gradle --severity-threshold=critical
+
+  # ============================================================
+  # 10. CUCUMBER - BDD / integración
+  # ============================================================
+  cucumber:
+    name: Cucumber (BDD / integración)
+    needs: snyk
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Dar permisos a gradlew
+        run: chmod +x gradlew
+
+      - name: Ejecutar pruebas BDD con Cucumber
+        run: ./gradlew --no-daemon test --tests "cl.duocuc.ep02.cucumber.CucumberRunnerTest"
+
+  # ============================================================
+  # 11. CONTAINER - Docker + Trivy
+  # ============================================================
+  container:
+    name: Contenedor (Docker + Trivy)
+    needs: cucumber
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Construir la imagen Docker
+        run: docker build -t ep02-backend:${{ github.sha }} .
+
+      - name: Escanear la imagen con Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ep02-backend:${{ github.sha }}
+          vuln-type: 'os'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
+
+  # ============================================================
+  # 12. DAST - OWASP ZAP
+  # ============================================================
+  dast:
+    name: DAST (OWASP ZAP)
+    needs: container
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: ep02
+          POSTGRES_USER: ep02_user
+          POSTGRES_PASSWORD: ep02_pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ep02_user -d ep02"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/ep02
+      SPRING_DATASOURCE_USERNAME: ep02_user
+      SPRING_DATASOURCE_PASSWORD: ep02_pass
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Dar permisos a gradlew
+        run: chmod +x gradlew
+
+      - name: Levantar la aplicación
+        run: |
+          nohup ./gradlew bootRun -Dnet.bytebuddy.experimental=true > app.log 2>&1 &
+          for i in $(seq 1 90); do
+            if curl -sf http://localhost:8080/actuator/health >/dev/null; then echo "Aplicación lista"; exit 0; fi
+            sleep 2
+          done
+          echo "La aplicación no respondió a tiempo" >&2
+          cat app.log
+          exit 1
+
+      - name: Escanear con ZAP (baseline)
+        uses: zaproxy/action-baseline@v0.15.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          target: 'http://localhost:8080'
+          cmd_options: '-i'
+          fail_action: 'true'
+          allow_issue_writing: 'false'
+
+      - name: Subir log de la aplicación (si falla)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dast-app-log
+          path: app.log
+          if-no-files-found: ignore
+
+      - name: Detener la aplicación
+        if: always()
+        run: |
+          pkill -f 'bootRun' || true
+          pkill -f 'cl.duocuc.ep02' || true
+
+  # ============================================================
+  # 13. PERFORMANCE - Gatling
+  # ============================================================
+  performance:
+    name: Rendimiento (Gatling)
+    needs: dast
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: ep02
+          POSTGRES_USER: ep02_user
+          POSTGRES_PASSWORD: ep02_pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ep02_user -d ep02"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/ep02
+      SPRING_DATASOURCE_USERNAME: ep02_user
+      SPRING_DATASOURCE_PASSWORD: ep02_pass
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Dar permisos a gradlew
+        run: chmod +x gradlew
+
+      - name: Levantar la aplicación
+        run: |
+          nohup ./gradlew bootRun -Dnet.bytebuddy.experimental=true > app.log 2>&1 &
+          for i in $(seq 1 90); do
+            if curl -sf http://localhost:8080/actuator/health >/dev/null; then echo "Aplicación lista"; exit 0; fi
+            sleep 2
+          done
+          echo "La aplicación no respondió a tiempo" >&2
+          cat app.log
+          exit 1
+
+      - name: Ejecutar Gatling
+        run: ./gradlew --no-daemon gatlingRun -Dnet.bytebuddy.experimental=true
+
+      - name: Subir reporte de Gatling
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gatling-report
+          path: build/reports/gatling/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Subir log de la aplicación (si falla)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-app-log
+          path: app.log
+          if-no-files-found: ignore
+
+      - name: Detener la aplicación
+        if: always()
+        run: |
+          pkill -f 'bootRun' || true
+          pkill -f 'cl.duocuc.ep02' || true
+
+  # ============================================================
+  # 14. PERFORMANCE-JMETER - JMeter
+  # ============================================================
+  performance-jmeter:
+    name: Rendimiento (JMeter)
+    needs: performance
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: ep02
+          POSTGRES_USER: ep02_user
+          POSTGRES_PASSWORD: ep02_pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ep02_user -d ep02"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/ep02
+      SPRING_DATASOURCE_USERNAME: ep02_user
+      SPRING_DATASOURCE_PASSWORD: ep02_pass
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Dar permisos a gradlew
+        run: chmod +x gradlew
+
+      - name: Levantar la aplicación
+        run: |
+          nohup ./gradlew bootRun -Dnet.bytebuddy.experimental=true > app.log 2>&1 &
+          for i in $(seq 1 90); do
+            if curl -sf http://localhost:8080/actuator/health >/dev/null; then echo "Aplicación lista"; exit 0; fi
+            sleep 2
+          done
+          echo "La aplicación no respondió a tiempo" >&2
+          cat app.log
+          exit 1
+
+      - name: Ejecutar JMeter
+        run: ./gradlew --no-daemon jmeterTest
+
+      - name: Subir resultados de JMeter
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jmeter-results
+          path: build/jmeter/results/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Subir log de la aplicación (si falla)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jmeter-app-log
+          path: app.log
+          if-no-files-found: ignore
+
+      - name: Detener la aplicación
+        if: always()
+        run: |
+          pkill -f 'bootRun' || true
+          pkill -f 'cl.duocuc.ep02' || true

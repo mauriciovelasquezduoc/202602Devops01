@@ -1,0 +1,4 @@
+# Secretos locales — NO versionar (usar la plantilla del README)
+secrets.txt
+*.env
+.env

@@ -5,9 +5,9 @@
 NAMESPACE=ep02
 
 # Imágenes (reemplazar con tus URIs de ECR)
-DATABASE_IMAGE=749553157552.dkr.ecr.us-east-1.amazonaws.com/ep02-database:latest
-BACKEND_IMAGE=749553157552.dkr.ecr.us-east-1.amazonaws.com/ep02-backend:latest
-FRONTEND_IMAGE=749553157552.dkr.ecr.us-east-1.amazonaws.com/ep02-frontend:latest
+DATABASE_IMAGE=175076305526.dkr.ecr.us-east-1.amazonaws.com/ep02-database:latest
+BACKEND_IMAGE=175076305526.dkr.ecr.us-east-1.amazonaws.com/ep02-backend:latest
+FRONTEND_IMAGE=175076305526.dkr.ecr.us-east-1.amazonaws.com/ep02-frontend:latest
 
 # Base de datos
 DATABASE_NAME=ep02

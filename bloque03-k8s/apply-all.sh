@@ -43,11 +43,15 @@ if [ ! -f "$VALUES_FILE" ]; then
     exit 1
 fi
 
-# Reemplazar el AWSAccountId de values.yaml por la cuenta real de secrets.txt
+# Reemplazar el placeholder <AWSAccountId> de values.yaml por la cuenta real de secrets.txt
 if [ -n "$ACCOUNT_ID" ]; then
-    echo "Reemplazando AWSAccountId por ${ACCOUNT_ID} en values.yaml..."
-    sed -E "s/[A-Za-z0-9]+\.dkr\.ecr\./${ACCOUNT_ID}.dkr.ecr./g" "$VALUES_FILE" > "$VALUES_FILE.tmp"
-    mv "$VALUES_FILE.tmp" "$VALUES_FILE"
+    if grep -q '<AWSAccountId>' "$VALUES_FILE"; then
+        echo "Reemplazando <AWSAccountId> por ${ACCOUNT_ID} en values.yaml..."
+        sed "s|<AWSAccountId>|${ACCOUNT_ID}|g" "$VALUES_FILE" > "$VALUES_FILE.tmp"
+        mv "$VALUES_FILE.tmp" "$VALUES_FILE"
+    else
+        echo "values.yaml no contiene <AWSAccountId>, se deja sin cambios"
+    fi
 else
     echo "ADVERTENCIA: AWSAccountId no definido en $SECRETS_FILE, values.yaml queda sin cambios"
 fi

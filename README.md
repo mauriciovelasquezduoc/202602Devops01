@@ -19,9 +19,6 @@ GITHUB_BACKEND=
 GITHUB_FRONTEND=
 ```
 
-
-
-
 ## Paso 02 Aplicación
 
 Se debe seleccionar una aplicacion con tres capas se pueda utilizar para esta implementación, se puede utilizar este mismo codigo, ir a leer y aplicar el paso a paso que esta en
@@ -43,9 +40,6 @@ Debes estar dentro del contenedor Docker `devops-eks-lab` con las credenciales d
 ```bash
 # Desde Windows PowerShell / CMD (fuera del contenedor):
 docker run -it -v ".":/root/work -v ~/.aws:/root/.aws -v /var/run/docker.sock:/var/run/docker.sock devops-eks-lab
-
-# Ya dentro del contenedor, configurar AWS:
-aws configure
 ```
 
 ## Paso 04 Infra K8s
