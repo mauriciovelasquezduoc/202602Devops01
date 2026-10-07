@@ -23,8 +23,9 @@ spec:
           ports:
             - containerPort: ${FRONTEND_PORT}
           env:
+            # FQDN: el resolver de nginx no aplica search domains de Kubernetes
             - name: BACKEND_HOST
-              value: "${NAMESPACE}-backend"
+              value: "${NAMESPACE}-backend.${NAMESPACE}.svc.cluster.local"
           resources:
             requests:
               cpu: "${FRONTEND_CPU_REQUEST}"

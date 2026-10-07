@@ -37,8 +37,12 @@ EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD curl -f http://localhost:80 || exit 1
 
-# Al arrancar: reemplaza ${BACKEND_HOST} con la variable de entorno real
-# Ejemplo local:  docker run -e BACKEND_HOST=backend ...
-# Ejemplo AWS:    docker run -e BACKEND_HOST=10.0.1.45 ...
+# Al arrancar:
+#   - NGINX_RESOLVER se toma de /etc/resolv.conf (Docker: 127.0.0.11; K8s: kube-dns)
+#   - BACKEND_HOST se reemplaza con la variable de entorno real
+# Ejemplos de BACKEND_HOST:
+#   Docker:     ep02-backend
+#   Kubernetes: ep02-backend.ep02.svc.cluster.local
 CMD ["/bin/sh", "-c", \
-  "envsubst '$BACKEND_HOST' < /etc/nginx/conf.d/default.conf.template > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"]
+  "NGINX_RESOLVER=$(awk '/^nameserver/{print $2; exit}' /etc/resolv.conf); export NGINX_RESOLVER; \
+   envsubst '$BACKEND_HOST $NGINX_RESOLVER' < /etc/nginx/conf.d/default.conf.template > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"]
