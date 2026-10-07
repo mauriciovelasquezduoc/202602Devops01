@@ -1,259 +1,49 @@
-name: CI/CD Backend - Calidad, Seguridad, ECR, Deploy EKS
+name: Deploy EKS - Backend
 
-# Pipeline unificado: fusiona la calidad de calidad-codigo.yml con el deploy a EKS.
-#   Calidad   : OpenRewrite - Spotless - PMD - JUnit + JaCoCo - Contract - Cucumber
-#   Seguridad : SonarCloud - Snyk
-#   Docker    : valida que la imagen se construya
-#   Entrega   : Versioning (v1.x.0) - Build & Push ECR - Deploy EKS
+# ============================================================================
+# DEPLOY-ONLY.
+# La calidad, tests, seguridad (Sonar/Snyk), validación de imagen (Docker/Trivy),
+# DAST, rendimiento, etc. ya los ejecuta el workflow "Calidad de código"
+# (calidad-codigo.yml) del mismo repositorio.
 #
-# Nota: el proyecto real usa Gradle (no Maven), por lo que las verificaciones se
-# ejecutan con ./gradlew. Equivalencias con calidad-codigo.yml:
-#   Spotless  <-> spotless:check
-#   PMD       <-> pmd:check           (pmdMain + pmdTest)
-#   JaCoCo    <-> verify              (check + jacocoTestReport)
-#   formato   <-> OpenRewrite dry-run (rewriteDryRun)
+# OPCIÓN 1: este workflow se dispara SOLO cuando "Calidad de código" termina
+# con éxito (trigger `workflow_run` + gate `conclusion == 'success'`) y
+# despliega EL MISMO commit que pasó la calidad (`head_sha`).
 #
 # Secrets necesarios (Settings > Secrets and variables > Actions):
-#   SONAR_TOKEN, SNYK_TOKEN
 #   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN, AWS_REGION
+#   (GITHUB_TOKEN lo provee GitHub automáticamente)
+# ============================================================================
 
 on:
-  push:
-    branches: [ main ]
-  workflow_dispatch: {}
+  workflow_run:
+    workflows: ["Calidad de código"]
+    types: [completed]
+    branches: [main]
 
 env:
   AWS_REGION: us-east-1
   ECR_REPO_BACKEND: ep02-backend
   K8S_NAMESPACE: ep02
   DEPLOYMENT_NAME: ep02-backend
-  SONAR_ORGANIZATION: mauriciovelasquezduoc
-  SONAR_PROJECT_KEY: mauriciovelasquezduoc_202601_ep02_backend
 
 permissions:
   contents: write
 
 jobs:
   # ============================================================
-  # JOB 1: CODE QUALITY - OpenRewrite + Spotless + PMD
-  # ============================================================
-  code-quality:
-    name: Code Quality
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout codigo
-        uses: actions/checkout@v4
-
-      - name: Configurar JDK 21
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-          cache: gradle
-
-      - name: Dar permisos al gradlew
-        run: chmod +x gradlew
-
-      - name: OpenRewrite dry-run
-        run: ./gradlew rewriteDryRun -Dnet.bytebuddy.experimental=true
-
-      - name: Spotless check
-        run: ./gradlew spotlessCheck
-
-      - name: PMD main y test
-        run: ./gradlew pmdMain pmdTest
-
-      - name: Publicar reporte PMD
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: pmd-report
-          path: build/reports/pmd/
-          retention-days: 7
-
-  # ============================================================
-  # JOB 2: BUILD & TEST - compila, testea y verifica cobertura
-  # ============================================================
-  build-and-test:
-    name: Build & Test
-    runs-on: ubuntu-latest
-    needs: code-quality
-    steps:
-      - name: Checkout codigo
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Configurar JDK 21
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-          cache: gradle
-
-      - name: Dar permisos al gradlew
-        run: chmod +x gradlew
-
-      - name: Compilar, testear y generar cobertura
-        run: ./gradlew clean check jacocoTestReport -Dnet.bytebuddy.experimental=true
-
-      - name: Publicar resultados de tests
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results
-          path: build/test-results/test/
-          retention-days: 7
-
-      - name: Publicar reporte JaCoCo
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: jacoco-coverage-report
-          path: |
-            build/reports/jacoco/test/html/
-            build/reports/jacoco/test/jacocoTestReport.xml
-          retention-days: 7
-
-      - name: Publicar reporte Spring Cloud Contract
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: contract-test-report
-          path: build/reports/tests/contractTest/
-          retention-days: 7
-
-      - name: Publicar reporte Cucumber
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: cucumber-report
-          path: build/cucumber-reports/
-          retention-days: 7
-
-  # ============================================================
-  # JOB 3: SECURITY - SonarCloud + Snyk
-  # ============================================================
-  security:
-    name: SonarCloud + Snyk
-    runs-on: ubuntu-latest
-    needs: build-and-test
-    steps:
-      - name: Checkout codigo
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Configurar JDK 21
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-          cache: gradle
-
-      - name: Dar permisos al gradlew
-        run: chmod +x gradlew
-
-      - name: Validar secrets de seguridad
-        run: |
-          set -euo pipefail
-          if [ -z "${SONAR_TOKEN:-}" ]; then
-            echo "ERROR: Falta SONAR_TOKEN en GitHub Secrets"
-            exit 1
-          fi
-          if [ -z "${SNYK_TOKEN:-}" ]; then
-            echo "ERROR: Falta SNYK_TOKEN en GitHub Secrets"
-            exit 1
-          fi
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-
-      - name: Descargar reporte JaCoCo
-        uses: actions/download-artifact@v4
-        with:
-          name: jacoco-coverage-report
-          path: build/reports/jacoco/test/
-
-      - name: Compilar para analisis
-        run: ./gradlew clean assemble -x test -Dnet.bytebuddy.experimental=true
-
-      - name: SonarCloud automatic analysis activo
-        run: |
-          echo "SonarCloud ya tiene Automatic Analysis activo para este proyecto."
-          echo "Se omite el task Gradle sonar para evitar el error: Automatic Analysis is enabled."
-          echo "Si quieres que SonarCloud sea gate bloqueante en GitHub Actions, desactiva Automatic Analysis en SonarCloud y vuelve a habilitar ./gradlew sonar en este workflow."
-
-      - name: Instalar Snyk CLI
-        run: npm install -g snyk@latest
-
-      - name: Snyk dependency scan
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        run: |
-          set -euo pipefail
-          snyk test \
-            --file=build.gradle \
-            --severity-threshold=high \
-            --fail-on=all \
-            --configuration-matching='^(compile|runtime|default)$'
-
-      - name: Generar reporte Snyk SARIF
-        if: always()
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        run: |
-          snyk test \
-            --file=build.gradle \
-            --severity-threshold=high \
-            --configuration-matching='^(compile|runtime|default)$' \
-            --sarif-file-output=snyk.sarif || true
-
-      - name: Publicar reporte Snyk
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: snyk-security-report
-          path: snyk.sarif
-          retention-days: 7
-
-  # ============================================================
-  # JOB 4: DOCKER - heredado de calidad-codigo.yml
-  # Valida que la imagen se construya (quality gate de imagen).
-  # ============================================================
-  docker:
-    name: Docker (validacion de imagen)
-    runs-on: ubuntu-latest
-    needs: security
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Configurar Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Construir imagen de runtime
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          target: runtime
-          push: false
-          tags: ep02-backend:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  # ============================================================
-  # JOB 5: VERSIONING - calcula v1.x.0 y crea tag git
+  # JOB 1: VERSIONING — calcula v1.x.0 y crea tag git
   # ============================================================
   versioning:
     name: Semantic Version (v1.x.0)
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
-    needs: [security, docker]
     outputs:
       new_tag: ${{ steps.calc.outputs.new_tag }}
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -276,7 +66,7 @@ jobs:
           git push origin "$NEW"
 
   # ============================================================
-  # JOB 6: BUILD & PUSH ECR - construye y publica la imagen
+  # JOB 2: BUILD & PUSH ECR — construye y publica la imagen
   # ============================================================
   build-push-ecr:
     name: Build & Push ECR (${{ needs.versioning.outputs.new_tag }})
@@ -284,6 +74,8 @@ jobs:
     needs: versioning
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Configurar credenciales AWS
         uses: aws-actions/configure-aws-credentials@v4
@@ -319,7 +111,7 @@ jobs:
           echo "- **Repositorio:** \`${{ env.ECR_REPO_BACKEND }}\`" >> "$GITHUB_STEP_SUMMARY"
 
   # ============================================================
-  # JOB 7: DEPLOY A EKS - aplica manifiestos y actualiza imagen
+  # JOB 3: DEPLOY A EKS — aplica manifiestos y actualiza imagen
   # ============================================================
   deploy:
     name: Deploy a EKS
@@ -327,6 +119,8 @@ jobs:
     needs: [versioning, build-push-ecr]
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Configurar credenciales AWS
         uses: aws-actions/configure-aws-credentials@v4

@@ -4,10 +4,16 @@
 
 ```
 bloque05-github-repos/
-├── backend/workflows/deploy-backend-eks.yml
-├── database/workflows/deploy-database-eks.yml
-└── frontend/workflows/deploy-frontend-eks.yml
+├── backend/workflows/deploy.yml
+├── database/workflows/deploy.yml
+└── frontend/workflows/deploy.yml
 ```
+
+> **Opción 1 (workflow_run):** cada `deploy.yml` es **deploy-only** y se dispara
+> SOLO cuando el workflow de calidad del mismo repo ("Calidad de código",
+> `calidad-codigo.yml`) termina con éxito. La calidad (lint, tests, Sonar, Snyk,
+> Docker/Trivy, ZAP, rendimiento) vive en `calidad-codigo.yml`; aquí solo queda
+> versioning + build/push ECR + deploy a EKS.
 
 ## Orden de Despliegue
 
@@ -51,27 +57,31 @@ git clone https://github.com/TU_USUARIO/NOMBREPERSONALIZADOREPO_FRONTEND.git
 # PARA DATABASE:
 cd NOMBREPERSONALIZADOREPO_DATABASE
 mkdir -p .github/workflows
-cp ../database/workflows/deploy-database-eks.yml .github/workflows/
+cp ../database/workflows/deploy.yml .github/workflows/
 git add .
-git commit -m "feat: add CI/CD workflow"
+git commit -m "feat: add deploy workflow"
 git push origin main
 
 # PARA BACKEND:
 cd ../NOMBREPERSONALIZADOREPO_BACKEND
 mkdir -p .github/workflows
-cp ../backend/workflows/deploy-backend-eks.yml .github/workflows/
+cp ../backend/workflows/deploy.yml .github/workflows/
 git add .
-git commit -m "feat: add CI/CD workflow"
+git commit -m "feat: add deploy workflow"
 git push origin main
 
 # PARA FRONTEND:
 cd ../NOMBREPERSONALIZADOREPO_FRONTEND
 mkdir -p .github/workflows
-cp ../frontend/workflows/deploy-frontend-eks.yml .github/workflows/
+cp ../frontend/workflows/deploy.yml .github/workflows/
 git add .
-git commit -m "feat: add CI/CD workflow"
+git commit -m "feat: add deploy workflow"
 git push origin main
 ```
+
+> Cada repo debe tener también su `calidad-codigo.yml` en `.github/workflows/`.
+> El `deploy.yml` no corre solo: espera a que "Calidad de código" termine OK
+> para el commit de `main`.
 
 ## Paso 3: Verificar en GitHub Actions
 
@@ -119,21 +129,21 @@ kubectl get svc -n ep02
 │                                                                 │
 │  1. DATABASE (Primero)                                          │
 │     ├── Clonar repo database                                    │
-│     ├── Copiar deploy-database-eks.yml                          │
+│     ├── Copiar deploy.yml (espera calidad OK)                   │
 │     ├── git push                                                │
 │     └── Esperar a que complete ✓                                │
 │                          │                                      │
 │                          ▼                                      │
 │  2. BACKEND (Segundo)                                           │
 │     ├── Clonar repo backend                                     │
-│     ├── Copiar deploy-backend-eks.yml                           │
+│     ├── Copiar deploy.yml (espera calidad OK)                   │
 │     ├── git push                                                │
 │     └── Esperar a que complete ✓                                │
 │                          │                                      │
 │                          ▼                                      │
 │  3. FRONTEND (Tercero)                                          │
 │     ├── Clonar repo frontend                                    │
-│     ├── Copiar deploy-frontend-eks.yml                          │
+│     ├── Copiar deploy.yml (espera calidad OK)                   │
 │     ├── git push                                                │
 │     └── Esperar a que complete ✓                                │
 │                          │                                      │
@@ -150,18 +160,21 @@ kubectl get svc -n ep02
 
 ### Database
 
-- **Jobs:** Versioning → Build & Push ECR
-- **Resultado:** Imagen `ep02-database` en ECR
+- **Dispara:** `workflow_run` de "Calidad de código" (solo si terminó OK)
+- **Jobs:** Versioning → Build & Push ECR → Deploy EKS
+- **Resultado:** Imagen `ep02-database` en ECR y deployment actualizado
 
 ### Backend
 
-- **Jobs:** Code Quality → Build & Test → Security → Versioning → Build & Push ECR
-- **Resultado:** Imagen `ep02-backend` en ECR
+- **Dispara:** `workflow_run` de "Calidad de código" (solo si terminó OK)
+- **Jobs:** Versioning → Build & Push ECR → Deploy EKS
+- **Resultado:** Imagen `ep02-backend` en ECR y deployment actualizado
 
 ### Frontend
 
-- **Jobs:** Test → Quality → Versioning → Build & Push ECR
-- **Resultado:** Imagen `ep02-frontend` en ECR
+- **Dispara:** `workflow_run` de "Calidad de código" (solo si terminó OK)
+- **Jobs:** Versioning → Build & Push ECR → Deploy EKS
+- **Resultado:** Imagen `ep02-frontend` en ECR, deployment actualizado y URL pública
 
 ## Comandos Útiles
 
@@ -219,4 +232,9 @@ kubectl logs -n kube-system -l app.kubernetes.io/name=aws-load-balancer-controll
 - Los workflows usan `GITHUB_TOKEN` para autenticación
 - Los secretos de AWS deben estar configurados en GitHub Secrets
 - El primer despliegue puede tardar 5-10 minutos
-- Los cambios en `main` activan automáticamente el workflow
+- Los cambios en `main` activan la calidad; el deploy corre **después**, solo si
+  la calidad termina OK (opción 1, `workflow_run`)
+- Sonar/Snyk se validan en `calidad-codigo.yml`: si esos tokens no funcionan, el
+  deploy no se dispara
+- El deploy usa el `head_sha` del run de calidad, por lo que despliega exactamente
+  el commit validado

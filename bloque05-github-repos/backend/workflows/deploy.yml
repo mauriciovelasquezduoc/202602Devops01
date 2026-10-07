@@ -1,164 +1,49 @@
-name: CI/CD Frontend - Calidad, Version, ECR, Deploy EKS
+name: Deploy EKS - Backend
 
-# Pipeline unificado: fusiona la calidad de calidad-codigo.yml con el deploy a EKS.
-#   Calidad   : Prettier - ESLint - Vitest + Cobertura - Build de produccion
-#   Seguridad : SonarCloud - Snyk
-#   Docker    : valida que la imagen se construya (corre tests dentro del Dockerfile)
-#   Entrega   : Versioning (v1.x.0) - Build & Push ECR - Deploy EKS
+# ============================================================================
+# DEPLOY-ONLY.
+# La calidad, tests, seguridad (Sonar/Snyk), validación de imagen (Docker/Trivy),
+# DAST, rendimiento, etc. ya los ejecuta el workflow "Calidad de código"
+# (calidad-codigo.yml) del mismo repositorio.
+#
+# OPCIÓN 1: este workflow se dispara SOLO cuando "Calidad de código" termina
+# con éxito (trigger `workflow_run` + gate `conclusion == 'success'`) y
+# despliega EL MISMO commit que pasó la calidad (`head_sha`).
 #
 # Secrets necesarios (Settings > Secrets and variables > Actions):
-#   SONAR_TOKEN, SNYK_TOKEN
 #   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN, AWS_REGION
+#   (GITHUB_TOKEN lo provee GitHub automáticamente)
+# ============================================================================
 
 on:
-  push:
-    branches: [ main ]
-  workflow_dispatch: {}
+  workflow_run:
+    workflows: ["Calidad de código"]
+    types: [completed]
+    branches: [main]
 
 env:
   AWS_REGION: us-east-1
-  ECR_REPO_FRONTEND: ep02-frontend
+  ECR_REPO_BACKEND: ep02-backend
   K8S_NAMESPACE: ep02
-  DEPLOYMENT_NAME: ep02-frontend
+  DEPLOYMENT_NAME: ep02-backend
 
 permissions:
   contents: write
 
 jobs:
   # ============================================================
-  # JOB 1: CALIDAD - heredado de calidad-codigo.yml
-  # Prettier + ESLint + Vitest + Cobertura + Build
-  # ============================================================
-  quality:
-    name: Calidad (Prettier + ESLint + Vitest + Cobertura + Build)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Configurar Node.js 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: package.json
-
-      - name: Instalar dependencias
-        run: npm install
-
-      - name: Prettier (formato de codigo)
-        run: npm run format:check
-
-      - name: ESLint (convenciones y tipos)
-        run: npm run lint
-
-      - name: Vitest + cobertura
-        run: npm run test:coverage
-
-      - name: Build de produccion
-        run: npm run build
-
-      - name: Guardar reporte de cobertura
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: coverage/
-          retention-days: 7
-
-  # ============================================================
-  # JOB 2: SEGURIDAD - SonarCloud + Snyk
-  # ============================================================
-  security:
-    name: Calidad y seguridad (SonarCloud + Snyk)
-    runs-on: ubuntu-latest
-    needs: quality
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Configurar Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: package.json
-
-      - name: Instalar dependencias
-        run: npm install
-
-      - name: Descargar reporte de cobertura
-        uses: actions/download-artifact@v4
-        with:
-          name: coverage-report
-          path: coverage
-
-      - name: Validar secrets de calidad
-        run: |
-          set -euo pipefail
-          if [ -z "${SONAR_TOKEN:-}" ]; then
-            echo "ERROR: Falta SONAR_TOKEN en GitHub Secrets"
-            exit 1
-          fi
-          if [ -z "${SNYK_TOKEN:-}" ]; then
-            echo "ERROR: Falta SNYK_TOKEN en GitHub Secrets"
-            exit 1
-          fi
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-
-      - name: SonarCloud automatic analysis activo
-        run: |
-          echo "SonarCloud ya tiene Automatic Analysis activo para este proyecto."
-          echo "Se omite el scanner CI para evitar el error: Automatic Analysis is enabled."
-          echo "Si quieres que SonarCloud sea gate bloqueante en GitHub Actions, desactiva Automatic Analysis en SonarCloud y vuelve a habilitar el scanner en este workflow."
-
-      - name: Snyk dependency scan
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        run: |
-          set -euo pipefail
-          npx snyk test --severity-threshold=high
-
-  # ============================================================
-  # JOB 3: DOCKER - heredado de calidad-codigo.yml
-  # Valida que la imagen se construya; el Dockerfile corre los tests.
-  # ============================================================
-  docker:
-    name: Docker (validacion de imagen)
-    runs-on: ubuntu-latest
-    needs: quality
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Configurar Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Construir imagen de runtime
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          target: runtime
-          push: false
-          tags: ep02-frontend:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  # ============================================================
-  # JOB 4: VERSIONING - calcula v1.x.0 y crea tag git
+  # JOB 1: VERSIONING — calcula v1.x.0 y crea tag git
   # ============================================================
   versioning:
     name: Semantic Version (v1.x.0)
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
-    needs: [security, docker]
     outputs:
       new_tag: ${{ steps.calc.outputs.new_tag }}
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -181,7 +66,7 @@ jobs:
           git push origin "$NEW"
 
   # ============================================================
-  # JOB 5: BUILD & PUSH ECR - construye y publica la imagen
+  # JOB 2: BUILD & PUSH ECR — construye y publica la imagen
   # ============================================================
   build-push-ecr:
     name: Build & Push ECR (${{ needs.versioning.outputs.new_tag }})
@@ -189,6 +74,8 @@ jobs:
     needs: versioning
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Configurar credenciales AWS
         uses: aws-actions/configure-aws-credentials@v4
@@ -211,8 +98,8 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPO_FRONTEND }}:${{ needs.versioning.outputs.new_tag }}
-            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPO_FRONTEND }}:latest
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPO_BACKEND }}:${{ needs.versioning.outputs.new_tag }}
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPO_BACKEND }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -221,10 +108,10 @@ jobs:
           echo "### Imagen publicada en ECR" >> "$GITHUB_STEP_SUMMARY"
           echo "- **Tag:** \`${{ needs.versioning.outputs.new_tag }}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- **Registry:** \`${{ steps.login-ecr.outputs.registry }}\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **Repositorio:** \`${{ env.ECR_REPO_FRONTEND }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Repositorio:** \`${{ env.ECR_REPO_BACKEND }}\`" >> "$GITHUB_STEP_SUMMARY"
 
   # ============================================================
-  # JOB 6: DEPLOY A EKS - aplica manifiestos y actualiza imagen
+  # JOB 3: DEPLOY A EKS — aplica manifiestos y actualiza imagen
   # ============================================================
   deploy:
     name: Deploy a EKS
@@ -232,6 +119,8 @@ jobs:
     needs: [versioning, build-push-ecr]
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Configurar credenciales AWS
         uses: aws-actions/configure-aws-credentials@v4
@@ -288,36 +177,36 @@ jobs:
           echo "  Actualizando deployment/${DEPLOYMENT_NAME}..."
           echo "  Usando tag: $IMAGE_TAG"
           kubectl set image "deployment/${DEPLOYMENT_NAME}" \
-            "frontend=$ECR_REGISTRY/${ECR_REPO_FRONTEND}:$IMAGE_TAG" \
+            "backend=$ECR_REGISTRY/${ECR_REPO_BACKEND}:$IMAGE_TAG" \
             -n "$K8S_NAMESPACE"
 
-      - name: Esperar rollout frontend
+      - name: Esperar rollout backend
         run: |
           set -euo pipefail
           echo "  Estado inicial de pods:"
-          kubectl get pods -n "$K8S_NAMESPACE" -l "app=${ECR_REPO_FRONTEND}" -o wide || true
+          kubectl get pods -n "$K8S_NAMESPACE" -l "app=${ECR_REPO_BACKEND}" -o wide || true
 
           echo "  Esperando a que el rollout termine (max 10 min)..."
           if ! kubectl rollout status "deployment/${DEPLOYMENT_NAME}" -n "$K8S_NAMESPACE" --timeout=600s; then
             echo ""
             echo "==========================================================="
-            echo "  ERROR: El rollout del frontend fallo o excedio 10 minutos"
+            echo "  ERROR: El rollout del backend fallo o excedio 10 minutos"
             echo "==========================================================="
             echo ""
             echo "--- Pods ---"
-            kubectl get pods -n "$K8S_NAMESPACE" -l "app=${ECR_REPO_FRONTEND}" -o wide || true
+            kubectl get pods -n "$K8S_NAMESPACE" -l "app=${ECR_REPO_BACKEND}" -o wide || true
             echo ""
             echo "--- Describe deployment ---"
             kubectl describe deployment "$DEPLOYMENT_NAME" -n "$K8S_NAMESPACE" || true
             echo ""
             echo "--- Describe pods ---"
-            kubectl describe pod -n "$K8S_NAMESPACE" -l "app=${ECR_REPO_FRONTEND}" || true
+            kubectl describe pod -n "$K8S_NAMESPACE" -l "app=${ECR_REPO_BACKEND}" || true
             echo ""
             echo "--- Logs actuales ---"
-            kubectl logs -n "$K8S_NAMESPACE" -l "app=${ECR_REPO_FRONTEND}" --tail=80 || true
+            kubectl logs -n "$K8S_NAMESPACE" -l "app=${ECR_REPO_BACKEND}" --tail=120 || true
             echo ""
             echo "--- Logs previos ---"
-            kubectl logs -n "$K8S_NAMESPACE" -l "app=${ECR_REPO_FRONTEND}" --previous --tail=80 || true
+            kubectl logs -n "$K8S_NAMESPACE" -l "app=${ECR_REPO_BACKEND}" --previous --tail=120 || true
             exit 1
           fi
 
@@ -332,24 +221,13 @@ jobs:
           echo "========================================="
           echo ""
           echo "--- Pods ---"
-          kubectl get pods -n "$K8S_NAMESPACE" -l "app=${ECR_REPO_FRONTEND}" -o wide
+          kubectl get pods -n "$K8S_NAMESPACE" -l "app=${ECR_REPO_BACKEND}" -o wide
           echo ""
           echo "--- Services ---"
-          kubectl get svc -n "$K8S_NAMESPACE" -l "app=${ECR_REPO_FRONTEND}"
+          kubectl get svc -n "$K8S_NAMESPACE" -l "app=${ECR_REPO_BACKEND}"
           echo ""
           echo "--- HPA ---"
-          kubectl get hpa ep02-frontend-hpa -n "$K8S_NAMESPACE" 2>/dev/null || true
-
-      - name: Obtener URL publica
-        run: |
-          set -euo pipefail
-          URL=$(kubectl get svc ep02-frontend -n "$K8S_NAMESPACE" -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "")
-          if [ -n "$URL" ]; then
-            echo "URL publica: http://$URL"
-            echo "URL_PUBLICA=http://$URL" >> "$GITHUB_ENV"
-          else
-            echo "URL publica aun no disponible"
-          fi
+          kubectl get hpa ep02-backend-hpa -n "$K8S_NAMESPACE" 2>/dev/null || true
 
       - name: Resumen deploy
         if: success()
@@ -358,5 +236,4 @@ jobs:
           echo "- **Cluster:** \`${{ env.EKS_CLUSTER_NAME }}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- **Deployment:** \`${{ env.DEPLOYMENT_NAME }}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- **Namespace:** \`${{ env.K8S_NAMESPACE }}\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **Version imagen:** \`${{ env.ECR_REPO_FRONTEND }}:${{ needs.versioning.outputs.new_tag }}\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **URL publica:** ${{ env.URL_PUBLICA }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Version imagen:** \`${{ env.ECR_REPO_BACKEND }}:${{ needs.versioning.outputs.new_tag }}\`" >> "$GITHUB_STEP_SUMMARY"

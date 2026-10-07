@@ -1,0 +1,78 @@
+# ============================================================================
+# Pipeline de calidad de código - database ep02 (PostgreSQL)
+#
+# UBICACIÓN (crítico): GitHub Actions SOLO ejecuta los workflows que están en
+# `.github/workflows/` en la RAIZ del repositorio.
+#
+# Para la base de datos no hay código de aplicación que testear, así que los
+# controles son:
+#   - Construir la imagen (valida Dockerfile + init.sql)
+#   - Escanear la imagen con Trivy (CVEs HIGH/CRITICAL del sistema operativo)
+#   - Smoke test: levantar la imagen y verificar que init.sql crea la tabla y
+#     carga los datos de ejemplo.
+#
+# El name DEBE ser "Calidad de código" para que el deploy.yml (opción 1,
+# workflow_run) se dispare cuando este termine con éxito.
+# ============================================================================
+
+name: Calidad de código
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: calidad-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Imagen Postgres (build + Trivy + smoke test)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Construir la imagen Docker
+        run: docker build -t ep02-database:${{ github.sha }} .
+
+      - name: Escanear la imagen con Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ep02-database:${{ github.sha }}
+          vuln-type: 'os'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
+
+      - name: Smoke test (init.sql crea tabla y datos)
+        run: |
+          set -euo pipefail
+          docker run -d --name ep02-db-test \
+            -e POSTGRES_DB=ep02 \
+            -e POSTGRES_USER=ep02_user \
+            -e POSTGRES_PASSWORD=ep02_pass \
+            -p 5432:5432 \
+            ep02-database:${{ github.sha }}
+
+          echo "Esperando a que PostgreSQL esté listo e init.sql haya cargado los datos..."
+          COUNT=0
+          for i in $(seq 1 45); do
+            COUNT=$(docker exec ep02-db-test psql -U ep02_user -d ep02 -tAc "select count(*) from ep02" 2>/dev/null || echo 0)
+            if [ "$COUNT" = "8" ]; then
+              echo "Datos cargados correctamente"
+              break
+            fi
+            sleep 2
+          done
+
+          echo "Filas en ep02: $COUNT"
+          test "$COUNT" -eq 8
+
+      - name: Detener y limpiar
+        if: always()
+        run: docker rm -f ep02-db-test || true
