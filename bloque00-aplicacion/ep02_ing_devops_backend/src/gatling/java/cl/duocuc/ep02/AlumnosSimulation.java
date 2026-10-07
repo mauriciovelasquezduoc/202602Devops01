@@ -38,11 +38,9 @@ public class AlumnosSimulation extends Simulation {
                     .pause(1)
                     .exec(listar);
 
-    {
-        setUp(
-                        escenario.injectOpen(
-                                atOnceUsers(10),
-                                rampUsers(20).during(10)))
+    public AlumnosSimulation() {
+        super();
+        setUp(escenario.injectOpen(atOnceUsers(10), rampUsers(20).during(10)))
                 .protocols(httpProtocol);
     }
 }

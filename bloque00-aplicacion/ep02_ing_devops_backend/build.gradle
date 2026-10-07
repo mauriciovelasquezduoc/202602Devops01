@@ -1,11 +1,11 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.5.3'
+    id 'org.springframework.boot' version '3.5.16'
     id 'io.spring.dependency-management' version '1.1.7'
     id 'jacoco'
     id "org.sonarqube" version "7.1.0.6387"
     id 'info.solidsoft.pitest' version '1.19.0-rc.2'
-    id 'org.springframework.cloud.contract' version '4.2.1'
+    id 'org.springframework.cloud.contract' version '4.3.4'
     // ── Calidad de código ─────────────────────────────────────────────────
     id 'org.openrewrite.rewrite' version '7.32.0'   // arregla código automáticamente
     id 'com.diffplug.spotless' version '7.0.4'       // limpia formato
@@ -29,7 +29,7 @@ repositories { mavenCentral() }
 
 // Forzar versiones seguras de dependencias con CVEs conocidos
 // Spring Boot 3.5.3 trae Tomcat 10.1.42 — forzamos 10.1.54 (fix CVEs)
-ext['tomcat.version'] = '10.1.54'
+ext['tomcat.version'] = '10.1.60'
 
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
@@ -59,7 +59,7 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.11.4'
 
     // Spring Cloud Contract - tests de contrato
-    testImplementation 'org.springframework.cloud:spring-cloud-starter-contract-verifier:4.2.3'
+    testImplementation 'org.springframework.cloud:spring-cloud-starter-contract-verifier:4.3.4'
 }
 
 test {
@@ -212,10 +212,21 @@ pmd {
 }
 
 tasks.withType(Pmd).configureEach {
+    // No analizar código generado (Spring Cloud Contract, OpenRewrite)
+    exclude '**/generated-test-sources/**'
+    exclude '**/generated-sources/**'
     reports {
         xml.required = true
         html.required = true
     }
+}
+
+// contractTest es código GENERADO por Spring Cloud Contract: no se analiza
+// (ni Checkstyle, ni PMD, ni SpotBugs), igual que se excluye en Spotless.
+tasks.matching {
+    it.name in ['checkstyleContractTest', 'pmdContractTest', 'spotbugsContractTest']
+}.configureEach {
+    enabled = false
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -240,7 +251,7 @@ tasks.register('codeQuality') {
 // Reporte:    build/reports/checkstyle/
 // ─────────────────────────────────────────────────────────────────────────────
 checkstyle {
-    toolVersion = '10.18.2'
+    toolVersion = '11.1.0'
     configFile = file('config/checkstyle/checkstyle.xml')
     ignoreFailures = false
     maxErrors = 0
@@ -249,6 +260,9 @@ checkstyle {
 }
 
 tasks.withType(Checkstyle).configureEach {
+    // No analizar código generado (Spring Cloud Contract, OpenRewrite)
+    exclude '**/generated-test-sources/**'
+    exclude '**/generated-sources/**'
     reports {
         xml.required = true
         html.required = true

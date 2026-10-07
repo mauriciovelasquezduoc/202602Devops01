@@ -39,6 +39,14 @@ ignore:
           No se incluye en el artefacto de producción.
         expires: '2026-12-31T00:00:00.000Z'
 
+  # httpclient5 via PMD → Saxon-HE → xmlresolver (build-time only)
+  SNYK-JAVA-ORGAPACHEHTTPCOMPONENTSCLIENT5-19432178:
+    - '*':
+        reason: >
+          httpclient5 es dependencia transitiva de PMD (build tool).
+          No se incluye en el artefacto de producción.
+        expires: '2026-12-31T00:00:00.000Z'
+
   # commons-beanutils via spring-cloud-contract (test scope only)
   SNYK-JAVA-COMMONSBEANUTILS-10259368:
     - '*':
@@ -53,6 +61,17 @@ ignore:
         reason: >
           assertj-core es dependencia de test scope únicamente.
           No se incluye en el artefacto de producción.
+        expires: '2026-12-31T00:00:00.000Z'
+
+  # spring-webmvc — sin parche en la línea 6.2.x
+  # CVE-2026-47884 (Arbitrary Code Injection). El fix está en Spring Framework
+  # 7.0.9, que solo viene con Spring Boot 4. Requiere migración mayor; se ignora
+  # temporalmente hasta migrar.
+  SNYK-JAVA-ORGSPRINGFRAMEWORK-19267098:
+    - '*':
+        reason: >
+          No hay versión parcheada en la línea 6.2.x (Spring Boot 3.5);
+          el fix está en Spring Framework 7.0.9 / Spring Boot 4.
         expires: '2026-12-31T00:00:00.000Z'
 
 patch: {}

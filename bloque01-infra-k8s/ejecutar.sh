@@ -257,6 +257,41 @@ ensure_nodegroup_active() {
   fail "El NodeGroup $NODEGROUP_NAME no llego a ACTIVE."
 }
 
+# Reconciliar el scaling del NodeGroup: CloudFormation NO re-escala un stack
+# existente, y AWS Academy puede dejar los nodos en 0 al detener el lab.
+reconcile_nodegroup() {
+  log "Asegurando que el NodeGroup tenga nodos (desired>=1): $NODEGROUP_NAME"
+  local desired="${NODEGROUP_DESIRED:-1}"
+  local min="${NODEGROUP_MIN:-1}"
+  local max="${NODEGROUP_MAX:-3}"
+
+  aws eks update-nodegroup-config \
+    --cluster-name "$CLUSTER_NAME" \
+    --nodegroup-name "$NODEGROUP_NAME" \
+    --region "$REGION" \
+    --scaling-config minSize="$min",maxSize="$max",desiredSize="$desired" \
+    >/dev/null 2>&1 || warn "No se pudo actualizar el scaling del NodeGroup (quizas ya estaba aplicado)."
+
+  record_step "NodeGroup scaling" "OK" "desired=$desired min=$min max=$max"
+}
+
+wait_nodes_ready() {
+  log "Esperando al menos 1 nodo Ready en el cluster"
+  local ready
+  for _ in $(seq 1 60); do
+    ready="$(kubectl get nodes --no-headers 2>/dev/null | grep -cE '[[:space:]]Ready[[:space:]]' || true)"
+    log "  Nodos Ready: ${ready:-0}"
+    if [ "${ready:-0}" -ge 1 ]; then
+      record_step "Nodos" "OK" "$ready nodo(s) Ready"
+      add_report "### Nodos"
+      add_report "- Nodos Ready: \`$ready\`"
+      return 0
+    fi
+    sleep 15
+  done
+  fail "No hay nodos Ready en el cluster $CLUSTER_NAME. Revisa el NodeGroup o reinicia el lab (Start Lab)."
+}
+
 validate_kubernetes() {
   log "Validando Kubernetes"
   kubectl get nodes -o wide
@@ -350,6 +385,8 @@ main() {
   validate_subnet_tags
   ensure_eks_stack
   ensure_nodegroup_active
+  reconcile_nodegroup
+  wait_nodes_ready
   validate_kubernetes
   validate_observability
   write_report

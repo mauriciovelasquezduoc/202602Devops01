@@ -240,6 +240,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Configurar Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Instalar dependencias
+        run: npm install
+
       - name: Instalar Snyk CLI
         run: npm install -g snyk@latest
 

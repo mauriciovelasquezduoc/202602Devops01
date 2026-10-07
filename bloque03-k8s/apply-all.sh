@@ -10,8 +10,7 @@ SECRETS_FILE="${SCRIPT_DIR}/../secrets.txt"
 
 echo "=== Kubernetes Config Generator ==="
 
-# Cargar credenciales y AWSAccountId desde secrets.txt
-ACCOUNT_ID=""
+# Cargar credenciales desde secrets.txt
 if [ -f "$SECRETS_FILE" ]; then
     echo "Leyendo $SECRETS_FILE..."
     while IFS='=' read -r key value || [ -n "$key" ]; do
@@ -29,31 +28,27 @@ if [ -f "$SECRETS_FILE" ]; then
     [ -n "${aws_secret_access_key:-}" ] && export AWS_SECRET_ACCESS_KEY="$aws_secret_access_key"
     [ -n "${aws_session_token:-}" ] && export AWS_SESSION_TOKEN="$aws_session_token"
     [ -n "${AWS_REGION:-}" ] && export AWS_DEFAULT_REGION="$AWS_REGION"
-
-    ACCOUNT_ID="${AWSAccountId:-}"
 else
     echo "ADVERTENCIA: No se encontro $SECRETS_FILE"
 fi
 
-aws eks update-kubeconfig --region "${AWS_REGION:-us-east-1}" --name laboratorio-ep02-eks
+REGION="${AWS_REGION:-us-east-1}"
+
+# Cuenta real: se DERIVA desde STS para NO depender de un account hardcodeado
+# en values.yaml ni de secrets.txt.
+ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text 2>/dev/null || echo "")"
+if [ -z "$ACCOUNT_ID" ]; then
+    ACCOUNT_ID="${AWSAccountId:-}"
+    [ -n "$ACCOUNT_ID" ] && echo "ADVERTENCIA: STS no respondio; usando AWSAccountId de secrets.txt ($ACCOUNT_ID)"
+fi
+echo "Cuenta AWS: ${ACCOUNT_ID:-desconocida} (region $REGION)"
+
+aws eks update-kubeconfig --region "$REGION" --name laboratorio-ep02-eks
 
 # Verificar que exista values.yaml
 if [ ! -f "$VALUES_FILE" ]; then
     echo "Error: No se encontro values.yaml"
     exit 1
-fi
-
-# Reemplazar el placeholder <AWSAccountId> de values.yaml por la cuenta real de secrets.txt
-if [ -n "$ACCOUNT_ID" ]; then
-    if grep -q '<AWSAccountId>' "$VALUES_FILE"; then
-        echo "Reemplazando <AWSAccountId> por ${ACCOUNT_ID} en values.yaml..."
-        sed "s|<AWSAccountId>|${ACCOUNT_ID}|g" "$VALUES_FILE" > "$VALUES_FILE.tmp"
-        mv "$VALUES_FILE.tmp" "$VALUES_FILE"
-    else
-        echo "values.yaml no contiene <AWSAccountId>, se deja sin cambios"
-    fi
-else
-    echo "ADVERTENCIA: AWSAccountId no definido en $SECRETS_FILE, values.yaml queda sin cambios"
 fi
 
 # Crear directorio de salida
@@ -68,6 +63,19 @@ source "$VALUES_FILE"
 set +a
 
 echo "   Variables cargadas"
+
+# Desacoplar las imágenes de la cuenta: reemplazar "<account>.dkr.ecr.<region>"
+# por la cuenta real (STS), SIN modificar values.yaml.
+# Reconoce tanto un account numérico previo como el placeholder <AWSAccountId>.
+if [ -n "$ACCOUNT_ID" ]; then
+    for var in DATABASE_IMAGE BACKEND_IMAGE FRONTEND_IMAGE; do
+        val="${!var:-}"
+        [ -n "$val" ] || continue
+        new="$(echo "$val" | sed -E "s#^[^/]+\.dkr\.ecr\.[a-z0-9-]+#${ACCOUNT_ID}.dkr.ecr.${REGION}#")"
+        export "$var=$new"
+        echo "   $var = $new"
+    done
+fi
 
 # Generar YAMLs desde templates
 echo ""

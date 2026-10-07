@@ -15,10 +15,10 @@ name: Deploy EKS - Database
 # ============================================================================
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-  workflow_dispatch:
+  workflow_run:
+    workflows: ["Calidad de código"]
+    types: [completed]
+    branches: [main]
 
 env:
   AWS_REGION: us-east-1

@@ -4,10 +4,11 @@
 # Namespace
 NAMESPACE=ep02
 
-# Imágenes (reemplazar con tus URIs de ECR)
-DATABASE_IMAGE=175076305526.dkr.ecr.us-east-1.amazonaws.com/ep02-database:latest
-BACKEND_IMAGE=175076305526.dkr.ecr.us-east-1.amazonaws.com/ep02-backend:latest
-FRONTEND_IMAGE=175076305526.dkr.ecr.us-east-1.amazonaws.com/ep02-frontend:latest
+# Imágenes ECR — la cuenta se resuelve en runtime desde AWS STS (apply-all.sh),
+# por lo que aquí se deja el placeholder <AWSAccountId>.
+DATABASE_IMAGE=<AWSAccountId>.dkr.ecr.us-east-1.amazonaws.com/ep02-database:latest
+BACKEND_IMAGE=<AWSAccountId>.dkr.ecr.us-east-1.amazonaws.com/ep02-backend:latest
+FRONTEND_IMAGE=<AWSAccountId>.dkr.ecr.us-east-1.amazonaws.com/ep02-frontend:latest
 
 # Base de datos
 DATABASE_NAME=ep02
