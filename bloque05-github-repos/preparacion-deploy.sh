@@ -21,6 +21,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 SECRETS_FILE="$ROOT_DIR/secrets.txt"
 
+# No pedir credenciales por consola: autenticamos con el token de secrets.txt
+export GIT_TERMINAL_PROMPT=0
+
 # "servicio:repositorio"
 SERVICES=(
   "database:ep02_ing_devops_database"
@@ -58,6 +61,17 @@ banner() {
   echo " $1"
   echo "========================================="
 }
+
+# Token de GitHub desde secrets.txt para autenticar el push.
+# El helper de credenciales es efímero: NO persiste el token en disco/config.
+GITHUB_TOKEN="$(obtener_valor GITHUB_TOKEN)"
+if [ -n "$GITHUB_TOKEN" ]; then
+  export GITHUB_TOKEN
+  GIT_CRED_HELPER='!f() { echo username=x-access-token; echo "password=$GITHUB_TOKEN"; }; f'
+  echo "Usando GITHUB_TOKEN de $SECRETS_FILE para autenticar el push."
+else
+  echo "ADVERTENCIA: GITHUB_TOKEN no encontrado en $SECRETS_FILE (git podría pedir credenciales)."
+fi
 
 for entry in "${SERVICES[@]}"; do
   svc="${entry%%:*}"
@@ -125,7 +139,11 @@ for entry in "${SERVICES[@]}"; do
     fi
 
     echo "  Push a origin..."
-    git push -u origin HEAD
+    if [ -n "${GITHUB_TOKEN:-}" ]; then
+      git -c credential.helper="$GIT_CRED_HELPER" push -u origin HEAD
+    else
+      git push -u origin HEAD
+    fi
   )
 
   echo "  OK $repo"
