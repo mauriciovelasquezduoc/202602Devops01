@@ -257,38 +257,260 @@ ensure_nodegroup_active() {
   fail "El NodeGroup $NODEGROUP_NAME no llego a ACTIVE."
 }
 
-# Reconciliar el scaling del NodeGroup: CloudFormation NO re-escala un stack
-# existente, y AWS Academy puede dejar los nodos en 0 al detener el lab.
+# Nombre del Auto Scaling Group asociado al NodeGroup (o vacio si no existe).
+nodegroup_asg_name() {
+  aws_text eks describe-nodegroup \
+    --cluster-name "$CLUSTER_NAME" \
+    --nodegroup-name "$NODEGROUP_NAME" \
+    --region "$REGION" \
+    --query 'nodegroup.resources.autoScalingGroups[0].name'
+}
+
+# Capacidad deseada actual del ASG del NodeGroup (vacio si no se puede leer).
+nodegroup_asg_desired() {
+  local asg="$1"
+  [ -n "$asg" ] && [ "$asg" != "None" ] || return 0
+  aws_text autoscaling describe-auto-scaling-groups \
+    --auto-scaling-group-names "$asg" \
+    --region "$REGION" \
+    --query 'AutoScalingGroups[0].DesiredCapacity'
+}
+
+# El rol IAM de los nodos necesita 3 policies administradas. Si falta
+# AmazonEKSWorkerNodePolicy el nodo no se registra; si falta AmazonEKS_CNI_Policy
+# el nodo arranca pero nunca pasa a Ready (networking). Auto-corregimos.
+NODE_ROLE_POLICIES=(
+  "AmazonEKSWorkerNodePolicy"
+  "AmazonEKS_CNI_Policy"
+  "AmazonEC2ContainerRegistryReadOnly"
+)
+
+ensure_node_role_policies() {
+  local role_arn role_name
+  role_arn="$(aws_text eks describe-nodegroup \
+    --cluster-name "$CLUSTER_NAME" \
+    --nodegroup-name "$NODEGROUP_NAME" \
+    --region "$REGION" \
+    --query 'nodegroup.nodeRole')"
+
+  if [ -z "$role_arn" ] || [ "$role_arn" = "None" ]; then
+    warn "No pude obtener el rol IAM del NodeGroup; omito validacion de policies."
+    return 0
+  fi
+  role_name="${role_arn##*/}"
+  log "Validando policies del rol de nodo: $role_name"
+
+  local attached missing=()
+  attached="$(aws_text iam list-attached-role-policies \
+    --role-name "$role_name" \
+    --query 'AttachedPolicies[*].PolicyName')"
+
+  local p
+  for p in "${NODE_ROLE_POLICIES[@]}"; do
+    printf '%s\n' "$attached" | tr '\t' '\n' | grep -qx "$p" || missing+=("$p")
+  done
+
+  if [ "${#missing[@]}" -eq 0 ]; then
+    log "  Rol de nodo OK (tiene las policies EKS requeridas)."
+    record_step "Node role policies" "OK" "las 3 policies presentes"
+    return 0
+  fi
+
+  warn "  Faltan policies en $role_name: ${missing[*]}"
+  for p in "${missing[@]}"; do
+    log "  Adjuntando arn:aws:iam::aws:policy/$p"
+    aws iam attach-role-policy \
+      --role-name "$role_name" \
+      --policy-arn "arn:aws:iam::aws:policy/$p" >/dev/null 2>&1 \
+      || warn "  No se pudo adjuntar $p (revisa permisos)."
+  done
+  record_step "Node role policies" "OK" "adjuntadas: ${missing[*]}"
+
+  # Refrescar el aws-node para que tome la policy CNI recien adjuntada.
+  kubectl -n kube-system rollout restart daemonset aws-node >/dev/null 2>&1 \
+    || warn "  No pude reiniciar aws-node (quizas aun no existe)."
+}
+
+# Reconciliar el scaling del NodeGroup: CloudFormation NO reescala un stack
+# existente, y AWS Academy puede dejar el ASG en 0 al detener el lab mientras
+# el nodegroup conserva desiredSize=1. Actualizar al mismo valor es un no-op,
+# asi que forzamos un ciclo 0 -> N para provocar que EKS lance instancias.
 reconcile_nodegroup() {
   log "Asegurando que el NodeGroup tenga nodos (desired>=1): $NODEGROUP_NAME"
   local desired="${NODEGROUP_DESIRED:-1}"
   local min="${NODEGROUP_MIN:-1}"
   local max="${NODEGROUP_MAX:-3}"
 
+  local asg asg_desired
+  asg="$(nodegroup_asg_name)"
+  asg_desired="$(nodegroup_asg_desired "$asg")"
+  log "  ASG asociado: ${asg:-NO_DISPONIBLE} (capacidad deseada actual: ${asg_desired:-?})"
+
+  # Si ya hay capacidad deseada suficiente, no reescalamos (evita recrear nodos sanos).
+  if [[ "${asg_desired:-}" =~ ^[0-9]+$ ]] && [ "$asg_desired" -ge "$desired" ]; then
+    log "  El NodeGroup ya tiene capacidad deseada >= $desired. No se reescala."
+    record_step "NodeGroup scaling" "OK" "sin cambios (desired actual ${asg_desired})"
+    return 0
+  fi
+
+  log "  Reciclando NodeGroup para lanzar nodos (desired 0 -> $desired)"
+  aws eks update-nodegroup-config \
+    --cluster-name "$CLUSTER_NAME" \
+    --nodegroup-name "$NODEGROUP_NAME" \
+    --region "$REGION" \
+    --scaling-config minSize=0,maxSize="$max",desiredSize=0 \
+    >/dev/null 2>&1 || warn "No se pudo aplicar desired=0 (continuando)."
+
+  aws eks wait nodegroup-active \
+    --cluster-name "$CLUSTER_NAME" \
+    --nodegroup-name "$NODEGROUP_NAME" \
+    --region "$REGION" 2>/dev/null || true
+
   aws eks update-nodegroup-config \
     --cluster-name "$CLUSTER_NAME" \
     --nodegroup-name "$NODEGROUP_NAME" \
     --region "$REGION" \
     --scaling-config minSize="$min",maxSize="$max",desiredSize="$desired" \
-    >/dev/null 2>&1 || warn "No se pudo actualizar el scaling del NodeGroup (quizas ya estaba aplicado)."
+    >/dev/null 2>&1 || fail "No se pudo aplicar el scaling del NodeGroup."
 
-  record_step "NodeGroup scaling" "OK" "desired=$desired min=$min max=$max"
+  aws eks wait nodegroup-active \
+    --cluster-name "$CLUSTER_NAME" \
+    --nodegroup-name "$NODEGROUP_NAME" \
+    --region "$REGION" 2>/dev/null || true
+
+  record_step "NodeGroup scaling" "OK" "reciclado 0->$desired (min=$min max=$max)"
+}
+
+# Diagnostico rapido del NodeGroup/ASG para explicar por que no hay nodos.
+log_nodegroup_diag() {
+  local asg asg_info health
+  asg="$(nodegroup_asg_name)"
+  if [ -n "$asg" ] && [ "$asg" != "None" ]; then
+    asg_info="$(aws_text autoscaling describe-auto-scaling-groups \
+      --auto-scaling-group-names "$asg" \
+      --region "$REGION" \
+      --query 'AutoScalingGroups[0].[DesiredCapacity,MinSize,MaxSize,length(Instances)]')"
+    log "  diag ASG: ${asg} (desired/min/max/instances: ${asg_info//$'\t'/,})"
+  else
+    log "  diag ASG: NO_DISPONIBLE"
+  fi
+
+  health="$(aws_text eks describe-nodegroup \
+    --cluster-name "$CLUSTER_NAME" \
+    --nodegroup-name "$NODEGROUP_NAME" \
+    --region "$REGION" \
+    --query 'nodegroup.health.issues[*].[code,message]')"
+  if [ -n "$health" ] && [ "$health" != "None" ]; then
+    warn "  diag health: $health"
+  fi
+}
+
+# Explica por que un nodo ya registrado queda NotReady: condiciones + addon CNI.
+log_node_not_ready_reason() {
+  local name _ reason
+  while read -r name _; do
+    [ -n "${name:-}" ] || continue
+    reason="$(kubectl get node "$name" \
+      -o jsonpath='{range .status.conditions[?(@.type=="Ready")]}{.status} | {.reason}: {.message}{end}' \
+      2>/dev/null)"
+    log "  nodo $name => ${reason:-sin datos de condicion}"
+  done < <(kubectl get nodes --no-headers 2>/dev/null)
+
+  local cni coredns
+  cni="$(kubectl -n kube-system get pods -l k8s-app=aws-node --no-headers 2>/dev/null \
+    | tr -s ' ' | cut -d' ' -f1,3- | head -5)"
+  [ -n "$cni" ] && log "  aws-node: $cni" || log "  aws-node: no encontrado"
+  coredns="$(kubectl -n kube-system get pods -l k8s-app=kube-dns --no-headers 2>/dev/null \
+    | tr -s ' ' | cut -d' ' -f1,3- | head -5)"
+  [ -n "$coredns" ] && log "  coredns: $coredns"
+}
+
+# Estado de las instancias del NodeGroup en el ASG.
+nodegroup_instances() {
+  local asg="$1"
+  [ -n "$asg" ] && [ "$asg" != "None" ] || return 0
+  aws_text autoscaling describe-auto-scaling-groups \
+    --auto-scaling-group-names "$asg" \
+    --region "$REGION" \
+    --query 'AutoScalingGroups[0].Instances[*].[InstanceId,LifecycleState,HealthStatus]'
+}
+
+# Vuelca la consola de arranque (cloud-init / nodeadm / kubelet) de cada instancia.
+# Es donde aparece el error real cuando el nodo nunca se une al cluster.
+dump_node_bootstrap_errors() {
+  local asg inst iid
+  asg="$(nodegroup_asg_name)"
+  inst="$(nodegroup_instances "$asg")"
+  if [ -z "$inst" ] || [ "$inst" = "None" ]; then
+    warn "  No hay instancias en el ASG ${asg:-?}."
+    return 0
+  fi
+  log "  Instancias del NodeGroup (InstanceId/LifecycleState/HealthStatus):"
+  printf '%s\n' "$inst" | tr '\t' ' '
+
+  while read -r iid _; do
+    [ -n "${iid:-}" ] || continue
+    log "  Consola de $iid (ultimas lineas de cloud-init/kubelet):"
+    aws ec2 get-console-output --instance-id "$iid" --latest \
+      --region "$REGION" --output text 2>/dev/null | tail -40 || true
+  done < <(printf '%s\n' "$inst" | awk 'NF {print $1}')
+}
+
+# Revisa como autentican los nodos al cluster (access entries o aws-auth).
+check_cluster_auth() {
+  log "  Auth de nodos en el cluster:"
+  local entries
+  entries="$(aws_text eks list-access-entries --cluster-name "$CLUSTER_NAME" --region "$REGION" --query 'accessEntries')"
+  if [ -n "$entries" ] && [ "$entries" != "None" ]; then
+    log "    access entries: $entries"
+  else
+    log "    access entries: (ninguno)"
+  fi
+  if kubectl get configmap aws-auth -n kube-system >/dev/null 2>&1; then
+    log "    aws-auth mapRoles:"
+    kubectl -n kube-system get configmap aws-auth -o jsonpath='{.data.mapRoles}' 2>/dev/null | sed 's/^/      /'
+    echo ""
+  else
+    log "    aws-auth: no existe (auth mode basado en API)"
+  fi
 }
 
 wait_nodes_ready() {
   log "Esperando al menos 1 nodo Ready en el cluster"
-  local ready
-  for _ in $(seq 1 60); do
+  local out registered ready
+  for i in $(seq 1 90); do
+    # OJO: usamos -o name y NO mezclamos stderr: "No resources found" va a stderr
+    # y no debe contar como nodo.
+    out="$(kubectl get nodes -o name 2>/dev/null || true)"
+    registered="$(printf '%s\n' "$out" | grep -c '^node/' || true)"
     ready="$(kubectl get nodes --no-headers 2>/dev/null | grep -cE '[[:space:]]Ready[[:space:]]' || true)"
-    log "  Nodos Ready: ${ready:-0}"
+    log "  Nodos registrados: ${registered:-0} | Ready: ${ready:-0}"
     if [ "${ready:-0}" -ge 1 ]; then
       record_step "Nodos" "OK" "$ready nodo(s) Ready"
       add_report "### Nodos"
       add_report "- Nodos Ready: \`$ready\`"
       return 0
     fi
+    # Cada ~2 minutos mostramos diagnostico del NodeGroup/ASG para entender por que no suben nodos.
+    if [ $((i % 8)) -eq 0 ]; then
+      log_nodegroup_diag
+      if [ "${registered:-0}" -ge 1 ]; then
+        log_node_not_ready_reason
+      fi
+    fi
     sleep 15
   done
+
+  # Diagnostico final: mostrar el estado de nodos/pods/eventos antes de fallar.
+  log "Diagnostico de nodos (kubectl get nodes -o wide):"
+  kubectl get nodes -o wide 2>&1 || true
+  log_node_not_ready_reason
+  dump_node_bootstrap_errors
+  check_cluster_auth
+  log "Pods de kube-system:"
+  kubectl -n kube-system get pods -o wide 2>&1 || true
+  log "Eventos recientes del cluster:"
+  kubectl get events -A --sort-by=.lastTimestamp 2>&1 | tail -20 || true
   fail "No hay nodos Ready en el cluster $CLUSTER_NAME. Revisa el NodeGroup o reinicia el lab (Start Lab)."
 }
 
@@ -385,6 +607,7 @@ main() {
   validate_subnet_tags
   ensure_eks_stack
   ensure_nodegroup_active
+  ensure_node_role_policies
   reconcile_nodegroup
   wait_nodes_ready
   validate_kubernetes

@@ -57,10 +57,16 @@ mkdir -p "$OUTPUT_DIR"
 # Cargar variables desde values.yaml
 echo "1/3 Leyendo valores desde values.yaml..."
 
-# Exportar todas las variables
-set -a
-source "$VALUES_FILE"
-set +a
+# NO se usa "source": valores como <AWSAccountId> serian interpretados por el
+# shell como redirecciones (< archivo). Se parsea key=value de forma literal.
+while IFS='=' read -r key value || [ -n "$key" ]; do
+    key="${key//[[:space:]]/}"
+    [ -z "$key" ] && continue
+    [[ "$key" == \#* ]] && continue
+    value="${value#"${value%%[![:space:]]*}"}"
+    value="${value%"${value##*[![:space:]]}"}"
+    export "$key=$value"
+done < "$VALUES_FILE"
 
 echo "   Variables cargadas"
 
