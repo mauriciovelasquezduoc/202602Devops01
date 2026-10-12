@@ -26,7 +26,7 @@ Se debe seleccionar una aplicacion con tres capas se pueda utilizar para esta im
 
 [README.d](bloque00-aplicacion/README.md)
 
-## PASO 03
+## PASO 03 Maquina Ubuntu para operar con AWS
 
 Se debe ingresar a Docker Desktop y luego entrar ejecutar una imagen de linux especialmente preparada:
 
@@ -41,6 +41,17 @@ Debes estar dentro del contenedor Docker `devops-eks-lab` con las credenciales d
 ```bash
 # Desde Windows PowerShell / CMD (fuera del contenedor):
 docker run -it -v ".":/root/work -v ~/.aws:/root/.aws -v /var/run/docker.sock:/var/run/docker.sock devops-eks-lab
+```
+
+
+
+## Paso 04 creación de repositorios
+
+Ahora, vamos a crear los repositorios de forma automatica en github
+
+```
+cd /root/work/bloque00-aplicacion
+bash  crear_repos.sh
 ```
 
 ## Paso 04 Infra K8s

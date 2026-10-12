@@ -93,6 +93,12 @@ for name in "${REPO_DIRS[@]}"; do
     continue
   fi
 
+  # Si el repositorio ya existe en GitHub, no se hace nada.
+  if gh repo view "$GH_OWNER/$name" > /dev/null 2>&1; then
+    echo "El repositorio $GH_OWNER/$name ya existe. Omitido (no se modifica)."
+    continue
+  fi
+
   (
     cd "$dir"
 
@@ -116,19 +122,12 @@ for name in "${REPO_DIRS[@]}"; do
       echo "Commit inicial creado"
     fi
 
-    if gh repo view "$GH_OWNER/$name" > /dev/null 2>&1; then
-      echo "El repositorio ya existe en GitHub. Configurando remoto y push..."
-      git remote get-url origin > /dev/null 2>&1 || \
-        git remote add origin "https://github.com/$GH_OWNER/$name.git"
-      git push -u origin HEAD
-    else
-      echo "Creando repositorio $GH_OWNER/$name..."
-      gh repo create "$GH_OWNER/$name" \
-        --public \
-        --source=. \
-        --remote=origin \
-        --push
-    fi
+    echo "Creando repositorio $GH_OWNER/$name..."
+    gh repo create "$GH_OWNER/$name" \
+      --public \
+      --source=. \
+      --remote=origin \
+      --push
   )
 
   echo "  ✔ https://github.com/$GH_OWNER/$name"
@@ -138,5 +137,53 @@ banner "RESUMEN"
 for name in "${REPO_DIRS[@]}"; do
   echo "  ✔ https://github.com/$GH_OWNER/$name"
 done
+
+# Escribe/actualiza el nombre del repositorio en secrets.txt
+# Mapea cada carpeta local a su clave correspondiente.
+clave_para_repo() {
+  case "$1" in
+    ep02_ing_devops_database) echo "GITHUB_DATABASE" ;;
+    ep02_ing_devops_backend)  echo "GITHUB_BACKEND" ;;
+    ep02_ing_devops_frontend) echo "GITHUB_FRONTEND" ;;
+    *) echo "" ;;
+  esac
+}
+
+# Asigna el valor de una clave en secrets.txt (la crea si no existe)
+set_secret_valor() {
+  local key="$1"
+  local value="$2"
+  local file="$3"
+  [ -f "$file" ] || touch "$file"
+  local tmp
+  tmp="$(mktemp)"
+  awk -F'=' -v key="$key" -v val="$value" '
+    BEGIN { found = 0 }
+    {
+      k = $1
+      gsub(/[[:space:]]/, "", k)
+      if (toupper(k) == toupper(key)) {
+        print key "=" val
+        found = 1
+        next
+      }
+      print
+    }
+    END {
+      if (!found) print key "=" val
+    }
+  ' "$file" > "$tmp" && mv "$tmp" "$file"
+}
+
+banner "ACTUALIZANDO $SECRETS_FILE"
+for name in "${REPO_DIRS[@]}"; do
+  key="$(clave_para_repo "$name")"
+  if [ -n "$key" ]; then
+    url="https://github.com/$GH_OWNER/$name"
+    set_secret_valor "$key" "$url" "$SECRETS_FILE"
+    echo "  ✔ $key=$url"
+  fi
+done
+
 echo ""
 echo "PROCESO COMPLETADO"
