@@ -121,26 +121,24 @@ Verás la interfaz del Gestor de Alumnos con la lista de productos.
                     http://localhost
 ```
 
+![1791821746751](image/README/1791821746751.png)
 
-## Para remover todo lo hecho con docker
+
+## Para remover todo lo hecho con Docker
 
 ```
 bash remove-docker-app.sh
 ```
 
+## Versión Docker Compose
 
-## Version Docker compose
-
-Ahora en vez de ir por cada uno de los servicios, ahora probaremos con docker compose
+Ahora en vez de ir por cada uno de los servicios, ahora probaremos con Docker Compose
 
 ```
 docker compose up -d
 ```
 
-
-## Remover los componentes de docker compose
-
-
+## Remover los componentes de Docker Compose
 
 ```
 bash remove-docker-compose-app.sh
