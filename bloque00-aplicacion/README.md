@@ -21,7 +21,7 @@ bloque00-aplicacion/
 ### Paso 1: Base de Datos
 
 ```bash
-cd database
+cd ep02_ing_devops_database
 docker compose up -d
 ```
 
@@ -30,7 +30,7 @@ Esperar hasta que el contenedor esté verde en Docker Desktop.
 ### Paso 2: Backend
 
 ```bash
-cd ../backend
+cd ../ep02_ing_devops_backend
 docker compose up -d
 ```
 
@@ -39,7 +39,7 @@ Esperar hasta que el contenedor esté verde en Docker Desktop.
 ### Paso 3: Frontend
 
 ```bash
-cd ../frontend
+cd ../ep02_ing_devops_frontend
 docker compose up -d
 ```
 
@@ -71,28 +71,7 @@ Verás la interfaz del Gestor de Alumnos con la lista de productos.
 | Backend  | http://localhost:8080/ep02 | API REST              |
 | Database | localhost:5432             | PostgreSQL (solo red) |
 
-## Comandos Útiles
-
-```bash
-# Ver logs de un servicio
-docker compose logs -f ep02-db
-docker compose logs -f ep02-backend
-docker compose logs -f ep02-frontend
-
-# Ver todos los contenedores corriendo
-docker ps
-
-# Detener un servicio
-docker compose down
-
-# Detener y eliminar volúmenes
-docker compose down -v
-
-# Reconstruir un servicio
-docker compose up -d --build
-```
-
-## Solución de Problemas
+# Solución de Problemas
 
 ### Backend no conecta a la DB
 
@@ -142,85 +121,27 @@ docker compose up -d --build
                     http://localhost
 ```
 
-## Crear Repositorios en GitHub
 
-Antes de crear los repositorios en github se debe hacer este paso:
-
-```
-git credential reject <<EOF
-protocol=https
-host=github.com
-EOF
-export GH_TOKEN="ghp_xxxxxxxxxxxxxxxxx"
-echo "$GH_TOKEN" | gh auth login --with-token
-gh auth setup-git
-
-
+## Para remover todo lo hecho con docker
 
 ```
-
-Para cada directorio (database, backend, frontend), crear un repositorio en GitHub:
-
-### Database
-
-```bash
-cd database
-git init
-git add .
-git commit -m "Initial commit: database"
-
-gh repo create NOMBREPERSONALIZADOREPO_DATABASE \
-  --public \
-  --source=. \
-  --remote=origin \
-  --push
+bash remove-docker-app.sh
 ```
 
-### Backend
 
-```bash
-cd ../backend
-git init
-git add .
-git commit -m "Initial commit: backend"
+## Version Docker compose
 
-gh repo create  NOMBREPERSONALIZADOREPO_BACKEND \
-  --public \
-  --source=. \
-  --remote=origin \
-  --push
-```
-
-### Frontend
-
-```bash
-cd ../frontend
-git init
-git add .
-git commit -m "Initial commit: frontend"
-
-gh repo create NOMBREPERSONALIZADOREPO_FRONTEND \
-  --public \
-  --source=. \
-  --remote=origin \
-  --push
-```
-
-## Secrets
-
-Ahora, los tres repositorios se deben agregar al final del archivo secrets.txt
-
-GITHUB_DATABASE=https://github.com/USUARIO/NOMBREPERSONALIZADOREPO_DATABASE.git
-GITHUB_BACKEND=https://github.com/USUARIO/NOMBREPERSONALIZADOREPO_BACKEND.git
-GITHUB_FRONTEND=https://github.com/USUARIO/NOMBREPERSONALIZADOREPO_FRONTEND.git
-
-```bash
+Ahora en vez de ir por cada uno de los servicios, ahora probaremos con docker compose
 
 ```
+docker compose up -d
+```
 
-## Notas Importantes
 
-- Los datos de la DB se guardan en el volumen `pgdata`
-- Para resetear la DB: `docker compose down -v` en database/
-- El backend reintenta conexión a la DB automáticamente
-- El frontend usa proxy inverso para comunicarse con el backend
+## Remover los componentes de docker compose
+
+
+
+```
+bash remove-docker-compose-app.sh
+```
