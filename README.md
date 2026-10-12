@@ -1,8 +1,8 @@
-# Bloque 06 — Pasos
+# Laboratorio Deploy a AWS
 
 ## Paso 01
 
-Abrir el directorio guia-04 con visual code y llenar con las variables y los nombres de los repos del servicio que vamos a desplegar
+Se debe crear un archivo llamado secrets.txt donde dejaremos todo lo ncesario para automatizar las distintas operaciones que realizaremos:
 
 Archivo: secrets.txt
 
@@ -10,6 +10,7 @@ Archivo: secrets.txt
 aws_access_key_id=
 aws_secret_access_key=
 aws_session_token=
+WSAccountId=
 SONAR_TOKEN=
 SNYK_TOKEN=
 AWS_REGION=us-east-1
