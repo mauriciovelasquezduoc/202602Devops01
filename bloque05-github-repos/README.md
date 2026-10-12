@@ -1,5 +1,14 @@
 # Guía de Despliegue - GitHub Actions CI/CD
 
+
+
+## Agregar wf para hacer deploy
+
+```
+cd /root/work/bloque05-github-repos
+bash preparacion-deploy.sh
+```
+
 ## Estructura
 
 ```
@@ -36,14 +45,12 @@ git clone https://github.com/TU_USUARIO/NOMBREPERSONALIZADOREPO_DATABASE.git
 
 ```bash
 git clone https://github.com/TU_USUARIO/NOMBREPERSONALIZADOREPO_BACKEND.git
-
 ```
 
 ### Clonar FRONTEND
 
 ```bash
 git clone https://github.com/TU_USUARIO/NOMBREPERSONALIZADOREPO_FRONTEND.git
-
 ```
 
 ## Paso 2: Copiar el workflow
