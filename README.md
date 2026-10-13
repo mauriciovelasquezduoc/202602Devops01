@@ -40,10 +40,8 @@ Debes estar dentro del contenedor Docker `devops-eks-lab` con las credenciales d
 
 ```bash
 # Desde Windows PowerShell / CMD (fuera del contenedor):
-docker run -it -v ".":/root/work -v ~/.aws:/root/.aws -v /var/run/docker.sock:/var/run/docker.sock devops-eks-lab
+docker run -it -v ".":/root/work -v ~/.aws:/root/.aws  devops-eks-lab
 ```
-
-
 
 ## Paso 04 creación de repositorios
 
@@ -54,19 +52,19 @@ cd /root/work/bloque00-aplicacion
 bash  crear_repos.sh
 ```
 
-## Paso 04 Infra K8s
+## Paso 05 Infra K8s
 
 Ahora vamos. a crear la infra, que tiene vpc k8s y grupos, el paso a paso esta en
 
 [README.MD](bloque01-infra-k8s/README.md)
 
-## Paso 05 ECR
+## Paso 06 ECR
 
 En el archivo bloque02-ecr/repositorios.yaml se debe poner el nombre del repo que tendra de la imagen, recopmendacion: dejar que comience con ep02- y asi mantener un patron que mas adelante se usara.
 
 [README.md](bloque02-ecr/README.md)
 
-## Paso 06 k8s
+## Paso 07 k8s
 
 Ahora vamos aplicaremos las confiburaciones para todas las aplicaciones
 
@@ -74,13 +72,13 @@ Se debe cambiar los datos de donde estaran las imagens de ECR,  y eso se hace mo
 
 [README.md](bloque03-k8s/README.md)
 
-## Paso 07 github secret
+## Paso 08 github secret
 
 Ahora este paso permite crear en forma automatica las variables necesarias para que opere el pipeline, los repositorios deben estar creados en github
 
 [REAME.md](bloque04-github-secret/README.md)
 
-## Paso 08 gihub repos
+## Paso 09 gihub repos
 
 Ahora, vamos a ir a gihub y vamos a bajar cada proyecto, debe hacerse clone de cada proyecto
 
