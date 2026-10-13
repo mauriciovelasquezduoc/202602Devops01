@@ -40,7 +40,7 @@ Debes estar dentro del contenedor Docker `devops-eks-lab` con las credenciales d
 
 ```bash
 # Desde Windows PowerShell / CMD (fuera del contenedor):
-docker run -it -v ".":/root/work -v ~/.aws:/root/.aws  devops-eks-lab
+docker run -it -v ".":/root/work devops-eks-lab
 ```
 
 ## Paso 04 creación de repositorios
