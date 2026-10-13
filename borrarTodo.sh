@@ -1,21 +1,32 @@
 #!/bin/bash
 # ==================================================================
-# ETAPA 12 — Limpieza total del laboratorio
+# borrarTodo.sh — LIMPIEZA TOTAL del laboratorio
 # ==================================================================
-# Elimina TODO lo creado en las etapas 01-11:
-#   - Namespace "ep02" (Pods, Services, Deployments, HPA, ELB)
+# Borra TODO lo creado en AWS (y opcionalmente GitHub + local):
+#   - Namespace "ep02" (Pods, Services, Deployments, HPA)
+#   - Load Balancers (ELB clásicos y v2/NLB) huérfanos en la VPC
+#   - Security Groups k8s-* / eks-cluster-sg huérfanos
 #   - Stack CloudFormation "laboratorio-ep02-eks" (cluster + nodegroup + addons)
 #   - Stack CloudFormation "laboratorio-ep02-vpc" (VPC + subnets + endpoints)
-#   - Repositorios ECR (ep02-db, ep02-backend, ep02-frontend)
-#   - Repositorios GitHub (202601_ep02_db, backend, frontend)
-#   - Directorios locales clonados
+#   - Repositorios ECR (todo lo que empiece con "ep02")
 #   - CloudWatch Log Groups del cluster EKS
-#   - Contexto de kubeconfig
-#   - known_hosts de github.com
+#   - Repositorios en GitHub con "ep02" en el nombre
+#   - Contexto de kubeconfig + known_hosts de github.com
+#
+# CLAVE: los ELB y los SG k8s-* deben borrarse ANTES que la VPC; si no,
+# CloudFormation falla con DELETE_FAILED (ENIs/SG en uso).
 #
 # Uso:
-#   bash ejecutar.sh
+#   bash borrarTodo.sh          # pide confirmación
+#   bash borrarTodo.sh -y       # sin confirmación
+#
+# Credenciales: se leen de ./secrets.txt (o del entorno).
 # ==================================================================
+
+set -uo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SECRETS_FILE="$SCRIPT_DIR/secrets.txt"
 
 REGION="us-east-1"
 CLUSTER_NAME="laboratorio-ep02-eks"
@@ -23,357 +34,245 @@ NAMESPACE="ep02"
 STACK_VPC="laboratorio-ep02-vpc"
 STACK_EKS="laboratorio-ep02-eks"
 NODEGROUP_NAME="laboratorio-ep02-nodegroup"
+ECR_PREFIX="ep02"
+GH_NAME_FILTER="ep02"
 
-# ──────────────────────────────────────────────────────────────────
-# Determinar SCRIPT_DIR de forma portable (macOS / Linux)
-# ──────────────────────────────────────────────────────────────────
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROJO='\033[0;31m'; VERDE='\033[0;32m'; AMAR='\033[1;33m'; AZUL='\033[0;34m'; NC='\033[0m'
+log()  { echo -e "$*"; }
+ok()   { echo -e "  ${VERDE}OK  $*${NC}"; }
+warn() { echo -e "  ${AMAR}$*${NC}"; }
+err()  { echo -e "  ${ROJO}$*${NC}"; }
 
-# ──────────────────────────────────────────────────────────────────
-# Colores para output
-# ──────────────────────────────────────────────────────────────────
-ROJO='\033[0;31m'
-VERDE='\033[0;32m'
-AMARILLO='\033[1;33m'
-AZUL='\033[0;34m'
-NC='\033[0m' # No Color
-
-echo ""
-echo -e "${AZUL}=============================================================${NC}"
-echo -e "${AZUL} ETAPA 12 — Limpieza total del laboratorio${NC}"
-echo -e "${AZUL}=============================================================${NC}"
-echo ""
-echo -e "${AMARILLO}⚠  Esto ELIMINARÁ todos los recursos creados en las etapas 01-11.${NC}"
-echo -e "${AMARILLO}⚠  Incluye: VPC, Cluster EKS, NodeGroup, ECR, GitHub repos, K8s resources.${NC}"
-echo -e "${AMARILLO}⚠  Esta acción NO se puede deshacer.${NC}"
-echo ""
-read -r -p "  ¿Estás seguro de continuar? (s/N): " CONFIRM
-echo ""
-
-if [ "$CONFIRM" != "s" ] && [ "$CONFIRM" != "S" ]; then
-  echo -e "${ROJO}  ❌ Operación cancelada.${NC}"
-  exit 0
+# ── Cargar credenciales de secrets.txt ──────────────────────────────────────
+if [ -f "$SECRETS_FILE" ]; then
+  while IFS='=' read -r key value || [ -n "$key" ]; do
+    key="${key//[[:space:]]/}"; [ -z "$key" ] && continue; [[ "$key" == \#* ]] && continue
+    value="${value#"${value%%[![:space:]]*}"}"; value="${value%"${value##*[![:space:]]}"}"
+    [ -z "$value" ] && continue; export "$key=$value"
+  done < "$SECRETS_FILE"
+  [ -n "${aws_access_key_id:-}" ]     && export AWS_ACCESS_KEY_ID="$aws_access_key_id"
+  [ -n "${aws_secret_access_key:-}" ] && export AWS_SECRET_ACCESS_KEY="$aws_secret_access_key"
+  [ -n "${aws_session_token:-}" ]     && export AWS_SESSION_TOKEN="$aws_session_token"
+  [ -n "${AWS_REGION:-}" ]            && REGION="$AWS_REGION"
 fi
 
-# ==================================================================
-# 0. Validar conectividad AWS
-# ==================================================================
-echo -e "${AZUL}[0/9] Validando conectividad AWS...${NC}"
-if ! ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text 2>/dev/null); then
-  echo -e "${ROJO}  ❌ ERROR: Sin conexión a AWS.${NC}"
-  echo "     Ejecuta 'aws configure' o renueva tus credenciales AWS Academy."
+log ""
+log "${AZUL}============================================================"
+log " LIMPIEZA TOTAL DEL LABORATORIO"
+log "============================================================${NC}"
+log "${AMAR}⚠  ELIMINA en AWS: VPC, EKS, NodeGroup, ELBs, SGs, ECR, logs."
+log "   y en GitHub: repos con '${GH_NAME_FILTER}'. NO se puede deshacer.${NC}"
+log ""
+
+if [ "${1:-}" != "-y" ] && [ "${1:-}" != "--yes" ]; then
+  read -r -p "  ¿Continuar? (s/N): " CONFIRM
+  [ "$CONFIRM" = "s" ] || [ "$CONFIRM" = "S" ] || { log "${ROJO}  Cancelado.${NC}"; exit 0; }
+fi
+
+# ── Helpers ─────────────────────────────────────────────────────────────────
+stack_status() {
+  aws cloudformation describe-stacks --stack-name "$1" --region "$REGION" \
+    --query "Stacks[0].StackStatus" --output text 2>/dev/null || true
+}
+
+delete_cf_stack() {
+  local stack="$1" tries=0 status
+  status="$(stack_status "$stack")"
+  if [ -z "$status" ]; then warn "Stack $stack no existe"; return 0; fi
+  while :; do
+    aws cloudformation delete-stack --stack-name "$stack" --region "$REGION" 2>/dev/null
+    if aws cloudformation wait stack-delete-complete --stack-name "$stack" --region "$REGION" 2>/dev/null; then
+      ok "Stack $stack eliminado"; return 0
+    fi
+    tries=$((tries + 1))
+    status="$(stack_status "$stack")"
+    warn "No se pudo borrar $stack (estado: ${status:-?}), intento $tries/3"
+    [ "$tries" -ge 3 ] && return 1
+    sleep 15
+  done
+}
+
+# Borra ELBs (v2 + clásicos) y SGs k8s-* de la VPC (liberan ENIs/SGs que
+# bloquean el borrado de la VPC).
+purge_vpc_dependencies() {
+  local vpc_id="$1"
+  [ -n "$vpc_id" ] && [ "$vpc_id" != "None" ] || { warn "Sin VPC ID; salto purga"; return 0; }
+
+  local arn lb sg
+  for arn in $(aws elbv2 describe-load-balancers --region "$REGION" \
+      --query "LoadBalancers[?VpcId=='$vpc_id'].LoadBalancerArn" --output text 2>/dev/null); do
+    aws elbv2 delete-load-balancer --load-balancer-arn "$arn" --region "$REGION" >/dev/null 2>&1 \
+      && ok "LBv2 borrado: $arn" || warn "no se pudo borrar $arn"
+  done
+  for lb in $(aws elb describe-load-balancers --region "$REGION" \
+      --query "LoadBalancerDescriptions[?VPCId=='$vpc_id'].LoadBalancerName" --output text 2>/dev/null); do
+    aws elb delete-load-balancer --load-balancer-name "$lb" --region "$REGION" >/dev/null 2>&1 \
+      && ok "ELB clásico borrado: $lb" || warn "no se pudo borrar $lb"
+  done
+  warn "Esperando 30s a que se liberen las ENIs de los LB…"; sleep 30
+
+  for sg in $(aws ec2 describe-security-groups --region "$REGION" \
+      --filters "Name=vpc-id,Values=$vpc_id" \
+      --query "SecurityGroups[?GroupName!='default' && (starts_with(GroupName,'k8s-') || starts_with(GroupName,'eks-cluster-sg'))].GroupId" \
+      --output text 2>/dev/null); do
+    aws ec2 delete-security-group --group-id "$sg" --region "$REGION" >/dev/null 2>&1 \
+      && ok "SG borrado: $sg" || warn "SG $sg en uso (se reintentará al borrar la VPC)"
+  done
+}
+
+# ── 0. Conectividad AWS ─────────────────────────────────────────────────────
+log "${AZUL}[0/10] Validando conectividad AWS…${NC}"
+ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text 2>/dev/null || true)"
+if [ -z "$ACCOUNT_ID" ]; then
+  err "Sin conexión a AWS. Renueva credenciales (AWS Academy → Start Lab) y actualiza secrets.txt."
   exit 1
 fi
-echo -e "${VERDE}  ✅ Conectado a AWS — Account ID: $ACCOUNT_ID${NC}"
-echo ""
+ok "AWS OK — account=$ACCOUNT_ID region=$REGION"
+log ""
 
-# ==================================================================
-# 1. Forzar conexión al cluster EKS (ANTES de borrar nada)
-# ==================================================================
-echo -e "${AZUL}[1/9] Conectando al cluster EKS (kubeconfig)...${NC}"
-CLUSTER_EXISTS=$(aws eks describe-cluster --name "$CLUSTER_NAME" --region "$REGION" --query "cluster.status" --output text 2>/dev/null || echo "NOEXISTE")
+# VPC ID (antes de borrar el stack)
+VPC_ID="$(aws cloudformation describe-stacks --stack-name "$STACK_VPC" --region "$REGION" \
+  --query "Stacks[0].Outputs[?OutputKey=='VpcId'].OutputValue" --output text 2>/dev/null || true)"
 
-if [ "$CLUSTER_EXISTS" = "ACTIVE" ]; then
-  aws eks update-kubeconfig --region "$REGION" --name "$CLUSTER_NAME" 2>/dev/null
-  echo -e "${VERDE}  ✅ kubeconfig configurado para: $CLUSTER_NAME${NC}"
-else
-  echo -e "${AMARILLO}  ⚠  El cluster $CLUSTER_NAME no existe o no está activo.${NC}"
-  echo "     Se saltarán los pasos que requieren kubectl."
+# ── 1. kubeconfig + namespace ep02 ──────────────────────────────────────────
+log "${AZUL}[1/10] Borrando namespace $NAMESPACE…${NC}"
+CLUSTER_STATUS="$(aws eks describe-cluster --name "$CLUSTER_NAME" --region "$REGION" --query 'cluster.status' --output text 2>/dev/null || echo NOEXISTE)"
+if [ "$CLUSTER_STATUS" = "ACTIVE" ]; then
+  aws eks update-kubeconfig --region "$REGION" --name "$CLUSTER_NAME" >/dev/null 2>&1 || true
 fi
-echo ""
-
-# ==================================================================
-# 2. Borrar namespace "ep02" (Pods, Services, Deployments, HPA, ELB)
-# ==================================================================
-echo -e "${AZUL}[2/9] Borrando namespace $NAMESPACE desde Kubernetes...${NC}"
-
-if kubectl get namespace "$NAMESPACE" &>/dev/null 2>&1; then
-  # Eliminar recursos dentro del namespace primero (más rápido que esperar finalizers)
-  kubectl delete hpa -n "$NAMESPACE" --all --grace-period=0 --force 2>/dev/null || true
-  kubectl delete deployment -n "$NAMESPACE" --all --grace-period=0 --force 2>/dev/null || true
-  kubectl delete svc -n "$NAMESPACE" --all --grace-period=0 --force 2>/dev/null || true
-  kubectl delete pod -n "$NAMESPACE" --all --grace-period=0 --force 2>/dev/null || true
-
-  # Eliminar el namespace
-  kubectl delete namespace "$NAMESPACE" --ignore-not-found --grace-period=0 --force 2>/dev/null || true
-
-  # Esperar a que desaparezca (con timeout)
-  echo -e "  Esperando eliminación del namespace..."
-  for i in $(seq 1 30); do
-    if ! kubectl get namespace "$NAMESPACE" &>/dev/null 2>&1; then
-      echo -e "${VERDE}  ✅ Namespace $NAMESPACE eliminado${NC}"
-      break
-    fi
-    sleep 2
-  done
-  if kubectl get namespace "$NAMESPACE" &>/dev/null 2>&1; then
-    echo -e "${AMARILLO}  ⚠  Namespace aún existe tras 60s. Se eliminará con el stack EKS.${NC}"
-  fi
+if kubectl get namespace "$NAMESPACE" >/dev/null 2>&1; then
+  kubectl delete hpa        -n "$NAMESPACE" --all --grace-period=0 --force >/dev/null 2>&1 || true
+  kubectl delete deployment -n "$NAMESPACE" --all --grace-period=0 --force >/dev/null 2>&1 || true
+  kubectl delete svc        -n "$NAMESPACE" --all --grace-period=0 --force >/dev/null 2>&1 || true
+  kubectl delete pod        -n "$NAMESPACE" --all --grace-period=0 --force >/dev/null 2>&1 || true
+  kubectl delete namespace  "$NAMESPACE" --ignore-not-found --grace-period=0 --force >/dev/null 2>&1 || true
+  for _ in $(seq 1 30); do kubectl get namespace "$NAMESPACE" >/dev/null 2>&1 || break; sleep 2; done
+  kubectl get namespace "$NAMESPACE" >/dev/null 2>&1 && warn "Namespace aún existe (se resolverá al borrar el cluster)" || ok "Namespace $NAMESPACE eliminado"
 else
-  echo -e "${AMARILLO}  ⚠  Namespace $NAMESPACE no existe (ya fue eliminado)${NC}"
+  warn "Namespace $NAMESPACE no existe"
 fi
-echo ""
+log ""
 
-# ==================================================================
-# 3. Borrar stack CloudFormation del cluster EKS
-#    (esto borra: cluster EKS + NodeGroup + addons)
-# ==================================================================
-echo -e "${AZUL}[3/9] Borrando stack CloudFormation: $STACK_EKS...${NC}"
-echo "  (Cluster EKS + NodeGroup + Addons: vpc-cni, coredns, kube-proxy, metrics-server)"
-echo -e "${AMARILLO}  Tarda ~10-15 minutos...${NC}"
-echo ""
-
-STACK_EKS_EXISTS=$(aws cloudformation describe-stacks --stack-name "$STACK_EKS" --region "$REGION" --query "Stacks[0].StackStatus" --output text 2>/dev/null || echo "NOEXISTE")
-
-if [ "$STACK_EKS_EXISTS" != "NOEXISTE" ]; then
-  aws cloudformation delete-stack \
-    --stack-name "$STACK_EKS" \
-    --region "$REGION"
-
-  echo -e "  Esperando a que se borre el stack..."
-  aws cloudformation wait stack-delete-complete \
-    --stack-name "$STACK_EKS" \
-    --region "$REGION" 2>/dev/null && \
-    echo -e "${VERDE}  ✅ Stack $STACK_EKS eliminado${NC}" || \
-    echo -e "${ROJO}  ❌ Error al esperar eliminación de $STACK_EKS${NC}"
-else
-  echo -e "${AMARILLO}  ⚠  Stack $STACK_EKS no existe${NC}"
+# ── 2. Load Balancers + SGs huérfanos (antes de tocar VPC) ───────────────────
+log "${AZUL}[2/10] Borrando ELBs y SGs k8s-* huérfanos en la VPC…${NC}"
+if [ -z "$VPC_ID" ] || [ "$VPC_ID" = "None" ]; then
+  # La VPC pudo no existir aún; intentar recalcular
+  VPC_ID="$(aws ec2 describe-vpcs --region "$REGION" --filters "Name=tag:Name,Values=laboratorio-ep02" --query 'Vpcs[0].VpcId' --output text 2>/dev/null || true)"
 fi
-echo ""
+purge_vpc_dependencies "${VPC_ID:-}"
+log ""
 
-# ==================================================================
-# 4. Borrar stack CloudFormation de la VPC
-#    (esto borra: VPC + subnets + Internet Gateway + VPC Endpoints)
-# ==================================================================
-echo -e "${AZUL}[4/9] Borrando stack CloudFormation: $STACK_VPC...${NC}"
-echo "  (VPC + Subnets + Internet Gateway + VPC Endpoints)"
-echo -e "${AMARILLO}  Tarda ~5 minutos...${NC}"
-echo ""
+# ── 3. Stack EKS (cluster + nodegroup + addons) ─────────────────────────────
+log "${AZUL}[3/10] Borrando stack $STACK_EKS (10-15 min)…${NC}"
+delete_cf_stack "$STACK_EKS" || err "El stack $STACK_EKS no se pudo eliminar (revisa eventos)"
+log ""
 
-STACK_VPC_EXISTS=$(aws cloudformation describe-stacks --stack-name "$STACK_VPC" --region "$REGION" --query "Stacks[0].StackStatus" --output text 2>/dev/null || echo "NOEXISTE")
+# ── 4. Dependencias restantes de la VPC (SGs/ELBs que quedaron) ──────────────
+log "${AZUL}[4/10] Purgando dependencias restantes de la VPC…${NC}"
+purge_vpc_dependencies "${VPC_ID:-}"
+log ""
 
-if [ "$STACK_VPC_EXISTS" != "NOEXISTE" ]; then
-  aws cloudformation delete-stack \
-    --stack-name "$STACK_VPC" \
-    --region "$REGION"
+# ── 5. Stack VPC ────────────────────────────────────────────────────────────
+log "${AZUL}[5/10] Borrando stack $STACK_VPC…${NC}"
+delete_cf_stack "$STACK_VPC" || err "El stack $STACK_VPC no se pudo eliminar (probable ENI/SG en uso; reintenta)"
+log ""
 
-  echo -e "  Esperando a que se borre el stack..."
-  aws cloudformation wait stack-delete-complete \
-    --stack-name "$STACK_VPC" \
-    --region "$REGION" 2>/dev/null && \
-    echo -e "${VERDE}  ✅ Stack $STACK_VPC eliminado${NC}" || \
-    echo -e "${ROJO}  ❌ Error al esperar eliminación de $STACK_VPC${NC}"
-else
-  echo -e "${AMARILLO}  ⚠  Stack $STACK_VPC no existe${NC}"
-fi
-echo ""
-
-# ==================================================================
-# 5. Borrar repositorios ECR
-# ==================================================================
-echo -e "${AZUL}[5/9] Borrando repositorios ECR...${NC}"
-
-for repo in ep02-db ep02-backend ep02-frontend; do
-  if aws ecr describe-repositories --repository-name "$repo" --region "$REGION" &>/dev/null 2>&1; then
-    aws ecr delete-repository \
-      --repository-name "$repo" \
-      --region "$REGION" \
-      --force 2>/dev/null && \
-      echo -e "  ${VERDE}$repo: ELIMINADO${NC}" || \
-      echo -e "  ${ROJO}$repo: error al borrar${NC}"
-  else
-    echo -e "  ${AMARILLO}$repo: ya no existía${NC}"
-  fi
-done
-echo ""
-
-# ==================================================================
-# 6. Borrar repositorios en GitHub
-# ==================================================================
-echo -e "${AZUL}[6/9] Borrando repositorios en GitHub...${NC}"
-
-USER_GITHUB=$(gh api user --jq '.login' 2>/dev/null || echo "")
-
-if [ -n "$USER_GITHUB" ]; then
-  echo "  Usuario GitHub detectado: $USER_GITHUB"
-  for repo in 202601_ep02_db 202601_ep02_backend 202601_ep02_frontend; do
-    FULL_NAME="$USER_GITHUB/$repo"
-    if gh repo view "$FULL_NAME" --json name &>/dev/null 2>&1; then
-      gh repo delete "$FULL_NAME" --yes 2>/dev/null && \
-        echo -e "  ${VERDE}$FULL_NAME: ELIMINADO${NC}" || \
-        echo -e "  ${ROJO}$FULL_NAME: error al borrar${NC}"
-    else
-      echo -e "  ${AMARILLO}$FULL_NAME: ya no existía${NC}"
-    fi
+# ── 6. Repositorios ECR (todo lo que empiece con 'ep02') ────────────────────
+log "${AZUL}[6/10] Borrando repositorios ECR (prefijo '$ECR_PREFIX')…${NC}"
+ECR_REPOS="$(aws ecr describe-repositories --region "$REGION" \
+  --query "repositories[?starts_with(repositoryName, '$ECR_PREFIX')].repositoryName" --output text 2>/dev/null || true)"
+if [ -n "$ECR_REPOS" ] && [ "$ECR_REPOS" != "None" ]; then
+  for repo in $ECR_REPOS; do
+    aws ecr delete-repository --repository-name "$repo" --region "$REGION" --force >/dev/null 2>&1 \
+      && ok "$repo eliminado" || err "$repo: error al borrar"
   done
 else
-  echo -e "  ${AMARILLO}⚠  No se pudo obtener usuario GitHub. Salta borrado de repos.${NC}"
+  warn "No hay repos ECR con prefijo '$ECR_PREFIX'"
 fi
-echo ""
+log ""
 
-# ==================================================================
-# 7. Borrar directorios locales de los repos clonados
-#    NOTA: Se usa la ruta relativa desde SCRIPT_DIR para ser portable
-# ==================================================================
-echo -e "${AZUL}[7/9] Borrando directorios locales de repositorios...${NC}"
-
-# Ruta relativa desde bloque06/ hacia bloque04-aplicacion/paso-00-github-cli/
-BASE_PASO00="$SCRIPT_DIR/../../bloque04-aplicacion/paso-00-github-cli"
-BASE_PASO01="$SCRIPT_DIR/../../bloque04-aplicacion/paso-01-deploy-aws"
-
-# Normalizar rutas
-BASE_PASO00=$(cd "$BASE_PASO00" 2>/dev/null && pwd || echo "$BASE_PASO00")
-BASE_PASO01=$(cd "$BASE_PASO01" 2>/dev/null && pwd || echo "$BASE_PASO01")
-
-# Borrar directorios clonados en paso-00
-if [ -d "$BASE_PASO00" ]; then
-  for repo_dir in "$BASE_PASO00"/202601_ep02_*; do
-    if [ -d "$repo_dir" ]; then
-      rm -rf "$repo_dir"
-      echo -e "  ${VERDE}Eliminado: $repo_dir${NC}"
-    fi
-  done
-else
-  echo -e "  ${AMARILLO}⚠  Directorio $BASE_PASO00 no existe${NC}"
-fi
-
-# Borrar .git de los repos en paso-01
-if [ -d "$BASE_PASO01" ]; then
-  for repo_dir in "$BASE_PASO01"/202601_ep02_*; do
-    if [ -d "$repo_dir/.git" ]; then
-      rm -rf "$repo_dir/.git"
-      echo -e "  ${VERDE}.git eliminado: $repo_dir${NC}"
-    fi
-  done
-else
-  echo -e "  ${AMARILLO}⚠  Directorio $BASE_PASO01 no existe${NC}"
-fi
-
-echo -e "${VERDE}  OK${NC}"
-echo ""
-
-# ==================================================================
-# 8. Limpiar CloudWatch Log Groups del cluster EKS
-# ==================================================================
-echo -e "${AZUL}[8/9] Limpiando CloudWatch Log Groups del cluster EKS...${NC}"
-
-LOG_GROUPS=$(aws logs describe-log-groups \
-  --region "$REGION" \
-  --query "logGroups[?contains(logGroupName, '/aws/eks/$CLUSTER_NAME')].logGroupName" \
-  --output text 2>/dev/null)
-
+# ── 7. CloudWatch Log Groups del cluster ────────────────────────────────────
+log "${AZUL}[7/10] Borrando CloudWatch Log Groups…${NC}"
+LOG_GROUPS="$(aws logs describe-log-groups --region "$REGION" \
+  --query "logGroups[?contains(logGroupName, '/aws/eks/$CLUSTER_NAME')].logGroupName" --output text 2>/dev/null || true)"
 if [ -n "$LOG_GROUPS" ] && [ "$LOG_GROUPS" != "None" ]; then
   for lg in $LOG_GROUPS; do
-    echo "  Eliminando log group: $lg"
-    aws logs delete-log-group --log-group-name "$lg" --region "$REGION" 2>/dev/null && \
-      echo -e "    ${VERDE}ELIMINADO${NC}" || \
-      echo -e "    ${AMARILLO}error (puede necesitar permisos adicionales)${NC}"
+    aws logs delete-log-group --log-group-name "$lg" --region "$REGION" >/dev/null 2>&1 \
+      && ok "log group borrado: $lg" || warn "no se pudo borrar $lg"
   done
 else
-  echo -e "  ${AMARILLO}No se encontraron log groups para $CLUSTER_NAME${NC}"
+  warn "No hay log groups de $CLUSTER_NAME"
 fi
-echo ""
+log ""
 
-# ==================================================================
-# 9. Limpiar kubeconfig local + known_hosts
-# ==================================================================
-echo -e "${AZUL}[9/9] Limpiando kubeconfig local y known_hosts...${NC}"
-
-# Obtener el ARN del cluster para los nombres de contexto
-CLUSTER_ARN="arn:aws:eks:$REGION:$ACCOUNT_ID:cluster/$CLUSTER_NAME"
-
-# Eliminar contexto, cluster y usuario del kubeconfig
-kubectl config delete-context "$CLUSTER_ARN" 2>/dev/null || true
-kubectl config delete-cluster "$CLUSTER_ARN" 2>/dev/null || true
-kubectl config delete-user "$CLUSTER_ARN" 2>/dev/null || true
-
-# También limpiar contextos alternativos que pueda haber generado update-kubeconfig
-kubectl config unset "contexts.$CLUSTER_NAME" 2>/dev/null || true
-kubectl config unset "clusters.$CLUSTER_NAME" 2>/dev/null || true
-
-echo -e "  ${VERDE}kubeconfig limpiado${NC}"
-
-# Limpiar known_hosts de github.com
-ssh-keygen -R github.com 2>/dev/null || true
-echo -e "  ${VERDE}known_hosts de github.com limpiado${NC}"
-
-echo ""
-
-# ==================================================================
-# VERIFICACIÓN FINAL
-# ==================================================================
-echo -e "${AZUL}=============================================================${NC}"
-echo -e "${AZUL} VERIFICANDO LIMPIEZA...${NC}"
-echo -e "${AZUL}=============================================================${NC}"
-echo ""
-
-ERRORES=0
-
-# Verificar namespace
-if kubectl get namespace "$NAMESPACE" &>/dev/null 2>&1; then
-  echo -e "  ${ROJO}❌ Namespace $NAMESPACE aún existe${NC}"
-  ERRORES=$((ERRORES + 1))
-else
-  echo -e "  ${VERDE}✅ Namespace $NAMESPACE: eliminado${NC}"
-fi
-
-# Verificar stacks CF
-for stack in "$STACK_EKS" "$STACK_VPC"; do
-  STATUS=$(aws cloudformation describe-stacks --stack-name "$stack" --region "$REGION" --query "Stacks[0].StackStatus" --output text 2>/dev/null)
-  if [ -n "$STATUS" ] && [ "$STATUS" != "NOEXISTE" ]; then
-    echo -e "  ${ROJO}❌ Stack $stack: $STATUS${NC}"
-    ERRORES=$((ERRORES + 1))
-  else
-    echo -e "  ${VERDE}✅ Stack $stack: eliminado${NC}"
-  fi
-done
-
-# Verificar ECR repos
-for repo in ep02-db ep02-backend ep02-frontend; do
-  if aws ecr describe-repositories --repository-name "$repo" --region "$REGION" &>/dev/null 2>&1; then
-    echo -e "  ${ROJO}❌ ECR $repo: aún existe${NC}"
-    ERRORES=$((ERRORES + 1))
-  else
-    echo -e "  ${VERDE}✅ ECR $repo: eliminado${NC}"
-  fi
-done
-
-# Verificar GitHub repos
+# ── 8. Repositorios en GitHub (nombre contiene 'ep02') ──────────────────────
+log "${AZUL}[8/10] Borrando repositorios GitHub (contienen '$GH_NAME_FILTER')…${NC}"
+USER_GITHUB="$(gh api user --jq '.login' 2>/dev/null || echo "")"
 if [ -n "$USER_GITHUB" ]; then
-  for repo in 202601_ep02_db 202601_ep02_backend 202601_ep02_frontend; do
-    FULL_NAME="$USER_GITHUB/$repo"
-    if gh repo view "$FULL_NAME" --json name &>/dev/null 2>&1; then
-      echo -e "  ${ROJO}❌ GitHub $FULL_NAME: aún existe${NC}"
-      ERRORES=$((ERRORES + 1))
-    else
-      echo -e "  ${VERDE}✅ GitHub $FULL_NAME: eliminado${NC}"
-    fi
-  done
-fi
-
-echo ""
-
-# ==================================================================
-# FIN
-# ==================================================================
-echo -e "${AZUL}=============================================================${NC}"
-if [ "$ERRORES" -eq 0 ]; then
-  echo -e "${VERDE} ETAPA 12 COMPLETADA — Laboratorio limpio para empezar desde 0${NC}"
+  log "  Usuario GitHub: $USER_GITHUB"
+  GH_REPOS="$(gh repo list "$USER_GITHUB" --limit 300 --json name \
+    --jq ".[] | select(.name | test(\"$GH_NAME_FILTER\"; \"i\")) | .name" 2>/dev/null || true)"
+  if [ -n "$GH_REPOS" ]; then
+    while read -r repo; do
+      [ -n "$repo" ] || continue
+      gh repo delete "$USER_GITHUB/$repo" --yes >/dev/null 2>&1 \
+        && ok "$USER_GITHUB/$repo eliminado" || err "$USER_GITHUB/$repo: error al borrar"
+    done <<< "$GH_REPOS"
+  else
+    warn "No hay repos con '$GH_NAME_FILTER'"
+  fi
 else
-  echo -e "${AMARILLO} ETAPA 12 COMPLETADA CON $ERRORES ERROR(ES) — Revisa mensajes arriba${NC}"
+  warn "No se pudo obtener usuario GitHub (gh no autenticado). Se omite."
 fi
-echo -e "${AZUL}=============================================================${NC}"
-echo ""
-echo "  Borrado:"
-echo "    [X] Namespace $NAMESPACE (Pods, Services, ELB, HPA)"
-echo "    [X] Stack $STACK_EKS (EKS + NodeGroup + Addons)"
-echo "    [X] Stack $STACK_VPC (VPC + Subnets + Endpoints)"
-echo "    [X] Repositorios ECR (ep02-db, ep02-backend, ep02-frontend)"
-echo "    [X] Repositorios en GitHub (202601_ep02_*)"
-echo "    [X] Directorios locales de repos clonados"
-echo "    [X] CloudWatch Log Groups del cluster"
-echo "    [X] kubeconfig limpiado"
-echo "    [X] known_hosts de github.com limpiado"
-echo ""
-echo -e "  ${VERDE}Ya puedes rehacer el laboratorio desde: cd ../etapa01-ValidaEntorno${NC}"
-echo ""
+log ""
+
+# ── 9. Archivos locales generados ───────────────────────────────────────────
+log "${AZUL}[9/10] Limpiando archivos locales generados…${NC}"
+rm -f "$SCRIPT_DIR/bloque02-ecr/resultado-ecr.yaml" 2>/dev/null && ok "resultado-ecr.yaml eliminado" || true
+rm -rf "$SCRIPT_DIR/bloque03-k8s/output" 2>/dev/null && ok "bloque03-k8s/output eliminado" || true
+log ""
+
+# ── 10. kubeconfig + known_hosts ────────────────────────────────────────────
+log "${AZUL}[10/10] Limpiando kubeconfig y known_hosts…${NC}"
+CLUSTER_ARN="arn:aws:eks:$REGION:$ACCOUNT_ID:cluster/$CLUSTER_NAME"
+kubectl config delete-context "$CLUSTER_ARN" >/dev/null 2>&1 || true
+kubectl config delete-cluster "$CLUSTER_ARN" >/dev/null 2>&1 || true
+kubectl config delete-user    "$CLUSTER_ARN" >/dev/null 2>&1 || true
+kubectl config unset "contexts.$CLUSTER_NAME" >/dev/null 2>&1 || true
+kubectl config unset "clusters.$CLUSTER_NAME" >/dev/null 2>&1 || true
+ok "kubeconfig limpiado"
+ssh-keygen -R github.com >/dev/null 2>&1 || true
+ok "known_hosts de github.com limpiado"
+log ""
+
+# ── Verificación ────────────────────────────────────────────────────────────
+log "${AZUL}===== VERIFICACIÓN =====${NC}"
+ERRORES=0
+for stack in "$STACK_EKS" "$STACK_VPC"; do
+  st="$(stack_status "$stack")"
+  if [ -n "$st" ]; then err "Stack $stack: $st"; ERRORES=$((ERRORES + 1)); else ok "Stack $stack: eliminado"; fi
+done
+if [ -n "$VPC_ID" ] && [ "$VPC_ID" != "None" ]; then
+  if aws ec2 describe-vpcs --region "$REGION" --vpc-ids "$VPC_ID" >/dev/null 2>&1; then
+    err "VPC $VPC_ID: aún existe"; ERRORES=$((ERRORES + 1))
+  else
+    ok "VPC: eliminada"
+  fi
+fi
+REMAIN_ECR="$(aws ecr describe-repositories --region "$REGION" \
+  --query "repositories[?starts_with(repositoryName, '$ECR_PREFIX')].repositoryName" --output text 2>/dev/null || true)"
+if [ -n "$REMAIN_ECR" ] && [ "$REMAIN_ECR" != "None" ]; then
+  err "ECR restantes: $REMAIN_ECR"; ERRORES=$((ERRORES + 1))
+else
+  ok "ECR: sin repos '$ECR_PREFIX*'"
+fi
+
+log ""
+log "${AZUL}============================================================${NC}"
+if [ "$ERRORES" -eq 0 ]; then
+  log "${VERDE} LIMPIEZA COMPLETA — no deberían quedar recursos cobrables${NC}"
+else
+  log "${AMAR} Limpieza con $ERRORES pendiente(s). Revisa los mensajes y reintenta.${NC}"
+fi
+log "${AZUL}============================================================${NC}"
+log ""
