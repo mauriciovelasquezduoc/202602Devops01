@@ -24,51 +24,7 @@ El script es idempotente: si la VPC, el cluster EKS, el NodeGroup o los addons y
 
 ## Diagrama
 
-```mermaid
-flowchart TB
-    User[Operador / ejecutar.sh] --> AWS[AWS Account us-east-1]
-
-    subgraph VPC[VPC laboratorio-ep02 10.0.0.0/16]
-        IGW[Internet Gateway]
-
-        subgraph Public[Subnets publicas]
-            PubA[public-subnet-a us-east-1a]
-            PubB[public-subnet-b us-east-1b]
-        end
-
-        subgraph PrivateApp[Subnets privadas app]
-            AppA[private-app-a us-east-1a]
-            AppB[private-app-b us-east-1b]
-        end
-
-        subgraph PrivateData[Subnets privadas data]
-            DataA[private-data-a us-east-1a]
-            DataB[private-data-b us-east-1b]
-        end
-
-        Endpoints[VPC Endpoints: S3, ECR API, ECR DKR, STS, Logs, EC2, EKS, ELB]
-    end
-
-    AWS --> VPC
-    Public --> IGW
-    PrivateApp --> Endpoints
-    PrivateData --> Endpoints
-
-    subgraph EKS[EKS laboratorio-ep02-eks]
-        ControlPlane[Control Plane EKS]
-        Addons[Addons: vpc-cni, coredns, kube-proxy, metrics-server]
-        NodeGroup[NodeGroup SPOT laboratorio-ep02-nodegroup]
-        Nodes[Worker nodes t3.large]
-    end
-
-    VPC --> EKS
-    ControlPlane --> Addons
-    NodeGroup --> Nodes
-    Nodes --> PrivateApp
-
-    EKS --> CW[CloudWatch Logs]
-    EKS --> Kubectl[kubectl / kubeconfig local]
-```
+![1791893063673](image/README/1791893063673.png)
 
 ## Variables utiles
 
