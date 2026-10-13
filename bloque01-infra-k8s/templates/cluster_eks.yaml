@@ -47,7 +47,9 @@ Resources:
 
       Name: laboratorio-ep02-eks
 
-      Version: "1.33"
+      # 1.32 (no 1.33): AL2 solo esta soportado hasta k8s 1.32 y es la unica AMI
+      # que evita el SCP de AWS Academy (AL2023/nodeadm requiere ec2:DescribeInstances).
+      Version: "1.32"
 
       RoleArn: !Ref EksClusterRoleArn
 
@@ -119,7 +121,11 @@ Resources:
 
       NodeRole: !Ref EksNodeRoleArn
 
-      AmiType: AL2023_x86_64_STANDARD
+      # AL2 (no AL2023): en AWS Academy el SCP niega ec2:DescribeInstances, que
+      # nodeadm (AL2023) necesita en su "InstanceCondition waiter"; con AL2023 el
+      # nodo nunca se une al cluster. AL2 usa bootstrap.sh y no requiere esa API
+      # (AL2 solo esta disponible hasta k8s 1.32, por eso Version: "1.32").
+      AmiType: AL2_x86_64
 
       CapacityType: SPOT
 

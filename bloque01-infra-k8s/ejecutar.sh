@@ -111,14 +111,68 @@ stack_output() {
     --output text
 }
 
+# Detecta estados terminales de fallo que impiden seguir (hay que borrar y recrear).
+is_stack_failed() {
+  case "${1:-}" in
+    CREATE_FAILED|ROLLBACK_COMPLETE|ROLLBACK_FAILED|DELETE_FAILED|UPDATE_ROLLBACK_FAILED)
+      return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+stack_exists() {
+  [ -n "$(stack_status "$1")" ]
+}
+
+# Elimina un stack y espera a que termine la eliminacion.
+delete_stack_wait() {
+  local stack="$1"
+  warn "Eliminando stack $stack para recrearlo..."
+  aws cloudformation delete-stack --stack-name "$stack" --region "$REGION"
+  if aws cloudformation wait stack-delete-complete --stack-name "$stack" --region "$REGION"; then
+    log "Stack $stack eliminado."
+  else
+    warn "No se pudo confirmar la eliminacion de $stack (continuando)."
+  fi
+}
+
+# Borra un stack si existe (para recrear siempre desde cero).
+teardown_stack() {
+  local stack="$1"
+  if stack_exists "$stack"; then
+    warn "Borrando stack existente: $stack"
+    delete_stack_wait "$stack"
+  else
+    log "Stack $stack no existe (nada que borrar)."
+  fi
+}
+
+# Borra ABSOLUTAMENTE TODO lo de la guia reutilizando aws-limpiar.sh, que borra
+# en el orden correcto (namespace/ELBs -> EKS -> SGs k8s -> VPC -> ECR -> logs).
+# Asi se evita el DELETE_FAILED de la VPC por ENIs/ELBs/SGs huerfanos.
+limpieza_total() {
+  local limpiar="$GUIA04_DIR/aws-limpiar.sh"
+  if [ -f "$limpiar" ]; then
+    log "Ejecutando limpieza total (aws-limpiar.sh)..."
+    bash "$limpiar" -y || warn "aws-limpiar.sh termino con advertencias; se continua."
+  else
+    warn "No se encontro aws-limpiar.sh; se borran solo los stacks."
+    teardown_stack "$EKS_STACK"
+    teardown_stack "$VPC_STACK"
+  fi
+}
+
 ensure_vpc_stack() {
   log "Validando/creando VPC CloudFormation: $VPC_STACK"
   [ -f "$VPC_TEMPLATE" ] || fail "No existe template VPC: $VPC_TEMPLATE"
 
   local before
   before="$(stack_status "$VPC_STACK")"
-  if [ -n "$before" ]; then
-    log "Stack VPC ya existe con estado: $before"
+  if is_stack_failed "$before"; then
+    warn "Stack VPC en estado fallido ($before). Se eliminara y recreara."
+    delete_stack_wait "$VPC_STACK"
+  elif [ -n "$before" ]; then
+    log "Stack VPC ya existe con estado: $before (se validara/actualizara)."
   else
     log "Stack VPC no existe. Se creara."
   fi
@@ -170,6 +224,23 @@ find_role_arn() {
     --output text
 }
 
+# Despliega/actualiza el stack EKS con los parametros dados.
+eks_stack_deploy() {
+  aws cloudformation deploy \
+    --template-file "$EKS_TEMPLATE" \
+    --stack-name "$EKS_STACK" \
+    --region "$REGION" \
+    --capabilities CAPABILITY_NAMED_IAM \
+    --parameter-overrides \
+      VPCId="$1" \
+      PublicSubnetA="$2" \
+      PublicSubnetB="$3" \
+      PrivateAppSubnetA="$4" \
+      PrivateAppSubnetB="$5" \
+      EksClusterRoleArn="$6" \
+      EksNodeRoleArn="$7"
+}
+
 ensure_eks_stack() {
   log "Validando/creando cluster EKS: $CLUSTER_NAME"
   [ -f "$EKS_TEMPLATE" ] || fail "No existe template EKS: $EKS_TEMPLATE"
@@ -188,25 +259,24 @@ ensure_eks_stack() {
 
   local before
   before="$(stack_status "$EKS_STACK")"
-  if [ -n "$before" ]; then
-    log "Stack EKS ya existe con estado: $before"
+  if is_stack_failed "$before"; then
+    warn "Stack EKS en estado fallido ($before). Se eliminara y recreara."
+    delete_stack_wait "$EKS_STACK"
+  elif [ -n "$before" ]; then
+    log "Stack EKS ya existe con estado: $before (se validara/actualizara)."
   else
     log "Stack EKS no existe. Se creara. Puede tardar 15-25 minutos."
   fi
 
-  aws cloudformation deploy \
-    --template-file "$EKS_TEMPLATE" \
-    --stack-name "$EKS_STACK" \
-    --region "$REGION" \
-    --capabilities CAPABILITY_NAMED_IAM \
-    --parameter-overrides \
-      VPCId="$vpc_id" \
-      PublicSubnetA="$public_a" \
-      PublicSubnetB="$public_b" \
-      PrivateAppSubnetA="$app_a" \
-      PrivateAppSubnetB="$app_b" \
-      EksClusterRoleArn="$cluster_role" \
-      EksNodeRoleArn="$node_role"
+  # CloudFormation NO puede reemplazar un NodeGroup de EKS con el mismo nombre
+  # in-place (AmiType, etc.): intenta crear el nuevo antes de borrar el viejo y
+  # EKS responde 409 AlreadyExists. Si el deploy falla por eso, se borra y recrea.
+  if ! eks_stack_deploy "$vpc_id" "$public_a" "$public_b" "$app_a" "$app_b" "$cluster_role" "$node_role"; then
+    warn "El update del stack EKS fallo (reemplazo de NodeGroup no soportado in-place). Se borra y recrea el stack."
+    delete_stack_wait "$EKS_STACK"
+    eks_stack_deploy "$vpc_id" "$public_a" "$public_b" "$app_a" "$app_b" "$cluster_role" "$node_role" \
+      || fail "No se pudo recrear el stack EKS."
+  fi
 
   wait_stack_stable "$EKS_STACK" || fail "El stack EKS no quedo estable. Revisa CloudFormation."
 
@@ -475,6 +545,17 @@ check_cluster_auth() {
   fi
 }
 
+# Recrea el stack EKS (cluster + NodeGroup + addons) cuando el NodeGroup queda
+# inservible (nodos que nunca se unen, DEGRADED o estado fallido).
+recreate_eks_stack() {
+  log "Recreando stack EKS: $EKS_STACK"
+  if stack_exists "$EKS_STACK"; then
+    delete_stack_wait "$EKS_STACK"
+  fi
+  record_step "Recreacion EKS" "OK" "Stack $EKS_STACK eliminado y recreado"
+  ensure_eks_stack
+}
+
 wait_nodes_ready() {
   log "Esperando al menos 1 nodo Ready en el cluster"
   local out registered ready
@@ -511,7 +592,8 @@ wait_nodes_ready() {
   kubectl -n kube-system get pods -o wide 2>&1 || true
   log "Eventos recientes del cluster:"
   kubectl get events -A --sort-by=.lastTimestamp 2>&1 | tail -20 || true
-  fail "No hay nodos Ready en el cluster $CLUSTER_NAME. Revisa el NodeGroup o reinicia el lab (Start Lab)."
+  warn "No hay nodos Ready en el cluster $CLUSTER_NAME."
+  return 1
 }
 
 validate_kubernetes() {
@@ -603,13 +685,30 @@ main() {
   aws sts get-caller-identity >/dev/null || fail "AWS CLI no tiene credenciales validas."
   record_step "Credenciales AWS" "OK" "STS respondio correctamente"
 
+  # Recrear SIEMPRE desde cero: se borra TODO lo existente antes de crear.
+  # Se usa aws-limpiar.sh (namespace/ELBs -> EKS -> SGs -> VPC -> ECR -> logs)
+  # para no quedar en loops con stacks en DELETE_FAILED/ROLLBACK_COMPLETE.
+  log "Borrando infraestructura previa (si existe) para recrear desde cero..."
+  limpieza_total
+
   ensure_vpc_stack
   validate_subnet_tags
   ensure_eks_stack
   ensure_nodegroup_active
   ensure_node_role_policies
   reconcile_nodegroup
-  wait_nodes_ready
+
+  # Si el NodeGroup no logra nodos Ready, se borra y recrea el stack EKS y se
+  # reintenta una sola vez (cubre clusters/NodeGroups en estado inservible).
+  if ! wait_nodes_ready; then
+    warn "El NodeGroup no logro nodos Ready. Se borrara y recreara el stack EKS."
+    recreate_eks_stack
+    ensure_nodegroup_active
+    ensure_node_role_policies
+    reconcile_nodegroup
+    wait_nodes_ready || fail "No hay nodos Ready tras recrear. Revisa el SCP de AWS Academy o reinicia el lab (Start Lab)."
+  fi
+
   validate_kubernetes
   validate_observability
   write_report

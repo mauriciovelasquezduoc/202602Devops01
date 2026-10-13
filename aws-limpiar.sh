@@ -130,7 +130,7 @@ fi
 
 # ── 5. Security Groups huérfanos (k8s-*) y stack VPC ────────────────────────
 log ""
-log "${AZUL}[4/7] Borrando Security Groups huérfanos y stack $STACK_VPC…${NC}"
+log "${AZUL}[4/7] Borrando Security Groups huérfanos y stack ${STACK_VPC}…${NC}"
 if [ -n "$VPC_ID" ] && [ "$VPC_ID" != "None" ]; then
   for sg in $(aws ec2 describe-security-groups --region "$REGION" \
       --filters "Name=vpc-id,Values=$VPC_ID" \
