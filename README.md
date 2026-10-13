@@ -40,7 +40,7 @@ Debes estar dentro del contenedor Docker `devops-eks-lab` con las credenciales d
 
 ```bash
 # Desde Windows PowerShell / CMD (fuera del contenedor):
-docker run -it -v ".":/root/work devops-eks-lab
+docker run -it -v .:/root/work devops-eks-lab
 ```
 
 ## Paso 04 creación de repositorios
@@ -87,7 +87,5 @@ Ahora, vamos a ir a gihub y vamos a bajar cada proyecto, debe hacerse clone de c
 Para ver la solucion andando:
 
 ```
-kubectl get svc ep02-frontend \
-  -n ep02 \
-  -o custom-columns=NAME:.metadata.name,TYPE:.spec.type,CLUSTER-IP:.spec.clusterIP,EXTERNAL-HOST:.status.loadBalancer.ingress[0].hostname,PORT:.spec.ports[0].port
+bash url-app.sh   
 ```
