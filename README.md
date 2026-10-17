@@ -87,5 +87,6 @@ Ahora, vamos a ir a gihub y vamos a bajar cada proyecto, debe hacerse clone de c
 Para ver la solucion andando:
 
 ```
-bash url-app.sh   
+cd /root/work/
+bash url-app.sh
 ```

@@ -22,10 +22,9 @@ FROM nginx:1.27-alpine AS runtime
 
 # Aplicar parches de seguridad de Alpine (Trivy falla si la base trae CVEs
 # HIGH/CRITICAL con fix disponible; apk upgrade los corrige).
-RUN apk --no-cache upgrade
-
-# Instalar envsubst (viene en gettext)
-RUN apk add --no-cache gettext
+# gettext provee envsubst (reemplaza ${BACKEND_HOST} en el template de nginx).
+# Una sola capa RUN = una capa menos en la imagen.
+RUN apk --no-cache upgrade && apk add --no-cache gettext
 
 # Copiar nginx.conf como template — contiene ${BACKEND_HOST}
 COPY nginx.conf /etc/nginx/conf.d/default.conf.template

@@ -20,6 +20,11 @@ services:
     image: ep02-db:latest
     container_name: ep02-db
     restart: unless-stopped
+    # Techo de memoria del contenedor (postgres:16-alpine funciona bien con 512M)
+    deploy:
+      resources:
+        limits:
+          memory: 512M
     ports:
       - "5432:5432"
     environment:
@@ -44,6 +49,12 @@ services:
     image: ep02-backend:latest
     container_name: ep02-backend
     restart: unless-stopped
+    # Techo de memoria: complementa el -Xmx256m del Dockerfile (heap 256M
+    # + metaspace/native ~450M); si se pasa, OOM-kill y restart lo revive
+    deploy:
+      resources:
+        limits:
+          memory: 512M
     depends_on:
       ep02-db:
         condition: service_healthy
@@ -65,6 +76,11 @@ services:
     image: ep02-frontend:latest
     container_name: ep02-frontend
     restart: unless-stopped
+    # Techo de memoria: nginx alpine usa ~20MB, 128M sobra
+    deploy:
+      resources:
+        limits:
+          memory: 128M
     depends_on:
       ep02-backend:
         condition: service_healthy

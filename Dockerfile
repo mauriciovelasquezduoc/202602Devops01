@@ -1,9 +1,9 @@
 # =====================================================
 # DevOps / AWS / Kubernetes Workstation
-# Base: Ubuntu 24.04
+# Base: Ubuntu 26.10
 # =====================================================
 
-FROM ubuntu:24.04
+FROM ubuntu:26.10
 
 ENV DEBIAN_FRONTEND=noninteractive
 

@@ -17,7 +17,7 @@ target/
 .env.*
 !.env.example
 secrets.txt
-
+bloque01-infra-k8s/reports
 bloque00-aplicacion/ep02_ing_devops_backend/.github/workflows/deploy.yml
 bloque00-aplicacion/ep02_ing_devops_database/.github/workflows/deploy.yml
 bloque00-aplicacion/ep02_ing_devops_frontend/.github/workflows/deploy.yml

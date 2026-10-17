@@ -9,6 +9,11 @@ services:
     image: ep02-db:latest
     container_name: ep02-db
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          # Techo de memoria (postgres:16-alpine funciona bien con 512M)
+          memory: 512M
     ports:
       - "5432:5432"
     environment:

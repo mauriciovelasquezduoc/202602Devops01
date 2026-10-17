@@ -12,6 +12,11 @@ services:
     ports:
       - "80:80"
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          # Techo de memoria: nginx alpine usa ~20MB, 128M sobra
+          memory: 128M
     networks:
       - ep02-network
 

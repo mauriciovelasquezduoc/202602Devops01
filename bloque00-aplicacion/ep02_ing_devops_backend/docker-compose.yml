@@ -15,6 +15,11 @@ services:
     ports:
       - "8080:8080"
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          # Techo de memoria: complementa el -Xmx256m del Dockerfile
+          memory: 512M
     networks:
       - ep02-network
 
