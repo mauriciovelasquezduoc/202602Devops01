@@ -18,7 +18,7 @@ on:
   workflow_run:
     workflows: ["Calidad de código"]
     types: [completed]
-    branches: [main]
+    branches: [development]
 
 env:
   AWS_REGION: us-east-1

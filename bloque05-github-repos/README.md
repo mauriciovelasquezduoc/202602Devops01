@@ -70,7 +70,7 @@ mkdir -p .github/workflows
 cp ../database/workflows/deploy.yml .github/workflows/
 git add .
 git commit -m "feat: add deploy workflow"
-git push origin main
+git push origin development
 
 # PARA BACKEND:
 cd ../NOMBREPERSONALIZADOREPO_BACKEND
@@ -78,7 +78,7 @@ mkdir -p .github/workflows
 cp ../backend/workflows/deploy.yml .github/workflows/
 git add .
 git commit -m "feat: add deploy workflow"
-git push origin main
+git push origin development
 
 # PARA FRONTEND:
 cd ../NOMBREPERSONALIZADOREPO_FRONTEND
@@ -86,12 +86,12 @@ mkdir -p .github/workflows
 cp ../frontend/workflows/deploy.yml .github/workflows/
 git add .
 git commit -m "feat: add deploy workflow"
-git push origin main
+git push origin development
 ```
 
 > Cada repo debe tener también su `calidad-codigo.yml` en `.github/workflows/`.
 > El `deploy.yml` no corre solo: espera a que "Calidad de código" termine OK
-> para el commit de `main`.
+> para el commit de `development`.
 
 ## Paso 3: Verificar en GitHub Actions
 
@@ -242,7 +242,7 @@ kubectl logs -n kube-system -l app.kubernetes.io/name=aws-load-balancer-controll
 - Los workflows usan `GITHUB_TOKEN` para autenticación
 - Los secretos de AWS deben estar configurados en GitHub Secrets
 - El primer despliegue puede tardar 5-10 minutos
-- Los cambios en `main` activan la calidad; el deploy corre **después**, solo si
+- Los cambios en `development` activan la calidad; el deploy corre **después**, solo si
   la calidad termina OK (opción 1, `workflow_run`)
 - Sonar/Snyk se validan en `calidad-codigo.yml`: si esos tokens no funcionan, el
   deploy no se dispara

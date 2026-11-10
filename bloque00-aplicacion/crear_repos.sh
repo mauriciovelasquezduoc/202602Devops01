@@ -6,23 +6,19 @@ set -e
 # Crea en GitHub los 3 repositorios de la aplicación a
 # partir de las carpetas locales y los sube (push).
 #
-# Modelo de ramas (laboratorio multi-ambiente):
-#   development  -> rama de trabajo (push directo, por defecto)
-#   quality      -> PROTEGIDA: solo cambia vía Pull Request
-#   production   -> PROTEGIDA: solo cambia vía Pull Request
-#   main         -> se elimina (ya no existe en estos repos)
+# Modelo de ramas (una sola rama de trabajo):
+#   development  -> única rama del repo (push directo, por defecto)
 #
-# Reglas de protección para quality y production:
-#   - Se requiere Pull Request (no push directo, sin force push,
-#     sin delete, historial lineal)
-#   - Se requieren los checks del workflow "Calidad de código"
-#   - Se requiere 1 review de aprobación
-#   - enforce_admins: configurable (ver PROTECCION_INCLUIR_ADMINS abajo)
+# Al final del proceso solo existirá development: si quality o
+# production (o main) existen, se eliminan (local y remota).
 #
 # Sobre repositorios NUEVOS: se crean desde la rama development.
-# Sobre repositorios EXISTENTES (creados antes con main): se
-# crea development desde lo que tenía main, se cambia la rama
-# por defecto y se borra main.
+# Sobre repositorios EXISTENTES: con la política de recreación
+# (RECREAR="si", o CREAR_SIN_PREGUNTAR=1, o responder 'si' a la
+# pregunta) se ELIMINAN en GitHub y se recrean desde cero usando
+# el contenido de la carpeta local (el historial remoto se pierde).
+# Si se responde 'no' (modo migración): se crea development desde
+# lo que tenía main, se cambia la rama por defecto y se borra main.
 #
 # Lee GITHUB_TOKEN desde ../secrets.txt.
 #
@@ -44,61 +40,9 @@ REPO_DIRS=(
 
 # ── Modelo de ramas ──────────────────────────────────────────
 DEFAULT_BRANCH="development"
-BRANCHES_EXTRA=("quality" "production")   # se crean desde development
-BRANCHES_PROTEGIDAS=("quality" "production")
-
-# Reglas de protección (señaladas en el plan del laboratorio):
-#   REVIEW_REQUERIDOS = 0..6   reviews de aprobación exigidas al PR
-#   PROTECCION_INCLUIR_ADMINS=false permite que el dueño del repo
-#   mergeé sus propios PR sin review (útil si operas solo); con true
-#   la regla es total pero necesitas otro usuario que apruebe.
-REVIEW_REQUERIDOS="${REVIEW_REQUERIDOS:-1}"
-if [ "${PROTECCION_INCLUIR_ADMINS:-true}" = "true" ]; then
-  INCLUIR_ADMINS_JSON="true"
-else
-  INCLUIR_ADMINS_JSON="false"
-fi
-
-# ── Required status checks: jobs del workflow "Calidad de código"
-# (el nombre del check en GitHub es el del JOB, no el del workflow)
-checks_para_repo() {
-  case "$1" in
-    *database*)
-      printf '%s\n' \
-        "Imagen Postgres (build + Trivy + smoke test)"
-      ;;
-    *backend*)
-      printf '%s\n' \
-        "Spotless (formato de código)" \
-        "Checkstyle (convenciones de código)" \
-        "PMD (code smells)" \
-        "SpotBugs (bugs en el bytecode)" \
-        "Pruebas unitarias (JUnit + Mockito)" \
-        "Mutación (PIT)" \
-        "JaCoCo (cobertura de pruebas)" \
-        "SonarQube (calidad)" \
-        "Snyk (seguridad de dependencias)" \
-        "Cucumber (BDD / integración)" \
-        "Contenedor (Docker + Trivy)" \
-        "DAST (OWASP ZAP)" \
-        "Rendimiento (Gatling)" \
-        "Rendimiento (JMeter)"
-      ;;
-    *frontend*)
-      printf '%s\n' \
-        "Prettier (formato de código)" \
-        "ESLint (lint / convenciones)" \
-        "Pruebas unitarias (Vitest)" \
-        "Cobertura (Vitest v8)" \
-        "Mutación (Stryker)" \
-        "SonarCloud (calidad)" \
-        "Snyk (seguridad de dependencias)" \
-        "Contenedor (Docker + Trivy)" \
-        "DAST (OWASP ZAP)" \
-        "Rendimiento (Lighthouse)"
-      ;;
-  esac
-}
+# Ramas de modelos anteriores que ya no se usan: se eliminan
+# (local y remota) para que solo exista development.
+RAMAS_OBSOLETAS=("quality" "production")
 
 banner() {
   echo ""
@@ -128,39 +72,7 @@ obtener_valor() {
   ' "$file"
 }
 
-# Construye el JSON de protección en $1 (archivo destino).
-build_protection_json() {
-  local outfile="$1"
-  local contexts="["
-  local first=1
-  local chk
-  while IFS= read -r chk; do
-    [ -n "$chk" ] || continue
-    if [ $first -eq 1 ]; then first=0; else contexts="$contexts,"; fi
-    contexts="$contexts\"$chk\""
-  done < <(checks_para_repo "${REPO_ACTUAL}")
-  contexts="$contexts]"
-
-  cat > "$outfile" <<EOF
-{
-  "required_status_checks": {
-    "strict": false,
-    "contexts": $contexts
-  },
-  "enforce_admins": $INCLUIR_ADMINS_JSON,
-  "required_pull_request_reviews": {
-    "required_approving_review_count": $REVIEW_REQUERIDOS,
-    "dismiss_stale_reviews": true
-  },
-  "restrictions": null,
-  "required_linear_history": true,
-  "allow_force_pushes": false,
-  "allow_deletions": false
-}
-EOF
-}
-
-banner "CREACIÓN DE REPOSITORIOS EN GITHUB (3 ramas + protecciones)"
+banner "CREACIÓN DE REPOSITORIOS EN GITHUB (solo development)"
 
 # Verificar GitHub CLI
 if ! command -v gh &> /dev/null; then
@@ -195,31 +107,24 @@ export GITHUB_TOKEN
 GH_OWNER="$(gh api user -q '.login')"
 echo "Usuario GitHub: $GH_OWNER"
 
-# Aplica (o actualiza) la protección de una rama protegida.
-proteger_rama() {
-  local full_name="$1"
-  local branch="$2"
-  local rules_file
-  rules_file="$(mktemp)"
-  build_protection_json "$rules_file"
-
-  printf '  Protegiendo %s: required_status_checks=%s reviews=%s enforce_admins=%s ... ' \
-    "$branch" "$(wc -l < <(checks_para_repo "${REPO_ACTUAL}") | tr -d ' ')" \
-    "$REVIEW_REQUERIDOS" "$INCLUIR_ADMINS_JSON"
-
-  if gh api \
-    -X PUT "repos/$full_name/branches/$branch/protection" \
-    --input "$rules_file" > /dev/null 2> /tmp/gh-protect-err.txt; then
-    echo "OK"
-  else
-    echo ""
-    echo "  ERROR al proteger $branch:"
-    sed 's/^/      /' /tmp/gh-protect-err.txt
-    echo "      (En repos privados de plan free los checks/reviews no están"
-    echo "       disponibles: hazlo en repos PÚBLICOS o revisa el permiso del token)"
-  fi
-  rm -f "$rules_file" /tmp/gh-protect-err.txt
-}
+# ── Política de recreación ───────────────────────────────────
+# Si el repositorio YA existe en GitHub se ELIMINA y se vuelve
+# a crear (historial remoto perdido). Requiere token con scope
+# delete_repo. Se puede omitir la pregunta con CREAR_SIN_PREGUNTAR=1.
+if [ -n "${CREAR_SIN_PREGUNTAR:-}" ]; then
+  RECREAR="si"
+else
+  echo ""
+  echo "ATENCIÓN: esta política ELIMINA en GitHub cualquier repo que"
+  echo "ya exista (historial, ramas e issues se pierden)"
+  echo "y lo recrea desde las carpetas locales."
+  printf '¿Continuar? [si/no]: '
+  read -r respuesta
+  case "$respuesta" in
+    [Ss] | [Ss][Ii] | [Yy] | [Yy][Ee][Ss]) RECREAR="si" ;;
+    *) RECREAR="no"; echo "Se conservará el contenido de repos existentes (modo migración)." ;;
+  esac
+fi
 
 # Crear y configurar cada repositorio
 for name in "${REPO_DIRS[@]}"; do
@@ -237,6 +142,27 @@ for name in "${REPO_DIRS[@]}"; do
   if gh repo view "$GH_OWNER/$name" > /dev/null 2>&1; then
     existe_remoto=1
     echo "El repositorio $full_name ya existe en GitHub."
+    if [ "$RECREAR" = "si" ]; then
+      echo "Eliminando $full_name en GitHub (política de recreación)..."
+      codigo=$(curl -s -o /tmp/gh-delete-repo.txt -w '%{http_code}' -X DELETE \
+        -H "Authorization: Bearer $GITHUB_TOKEN" \
+        "https://api.github.com/repos/$full_name")
+      if [ "$codigo" = "204" ]; then
+        existe_remoto=0
+        echo "  Repositorio eliminado. Se creará de nuevo desde la carpeta local."
+        echo "  Restableciendo repositorio git local desde cero..."
+        rm -rf "$dir/.git"
+      else
+        echo ""
+        echo "ERROR: no se pudo eliminar $full_name (HTTP $codigo):"
+        grep -o '"message":[^,]*' /tmp/gh-delete-repo.txt | head -1 | sed 's/^/    /'
+        echo "    (El token necesita scope delete_repo. Usa CREAR_SIN_PREGUNTAR=1"
+        echo "     para omitir la pregunta, o responde 'no' para modo migración.)"
+        echo "    Continuando en modo migración sobre el repo existente..."
+        existe_remoto=1
+      fi
+      rm -f /tmp/gh-delete-repo.txt
+    fi
   else
     echo "El repositorio $full_name no existe: se creará nuevo."
   fi
@@ -311,30 +237,33 @@ for name in "${REPO_DIRS[@]}"; do
       echo "Commit creado en $DEFAULT_BRANCH"
     fi
 
-    # 5) Crear el repo si no existe (development queda como rama por defecto)
+    # 5) Crear el repo vacío si no existe (el remoto origin ya está en el
+    #    paso 2; el push de development queda como rama por defecto)
     if [ "$existe_remoto" -eq 0 ]; then
-      echo "Creando repositorio $full_name (desde $DEFAULT_BRANCH)..."
-      gh repo create "$GH_OWNER/$name" \
-        --public \
-        --source=. \
-        --remote=origin \
-        --push > /dev/null
-    else
-      echo "Publicando $DEFAULT_BRANCH..."
-      git -c credential.helper="$GIT_CRED_HELPER" push -u origin "$DEFAULT_BRANCH"
-    fi
-
-    # 6) Crear quality y production desde el MISMO commit de development
-    #    (solo si no existen; no se aplasta historial ajeno)
-    for br in "${BRANCHES_EXTRA[@]}"; do
-      if ! git show-ref --verify --quiet "refs/heads/$br"; then
-        git branch "$br" "$DEFAULT_BRANCH"
+      echo "Creando repositorio $full_name (vacío, el contenido se sube a continuación)..."
+      if ! gh repo create "$GH_OWNER/$name" --public > /dev/null; then
+        echo "ERROR: no se pudo crear el repositorio $full_name en GitHub."
+        exit 1
       fi
-      if git ls-remote --heads origin "$br" | grep -q "$br"; then
-        echo "Rama $br ya existe en el remoto (sin cambios)"
-      else
-        git -c credential.helper="$GIT_CRED_HELPER" push origin "$br"
-        echo "Rama $br creada en el remoto"
+    fi
+    echo "Publicando $DEFAULT_BRANCH..."
+    git -c credential.helper="$GIT_CRED_HELPER" push -u origin "$DEFAULT_BRANCH"
+
+    # 6) Limpieza: eliminar ramas del modelo anterior (quality,
+    #    production) para que solo exista development
+    for br in "${RAMAS_OBSOLETAS[@]}"; do
+      git branch -D "$br" > /dev/null 2>&1 || true
+      if git ls-remote --heads origin "$br" | grep -q "refs/heads/$br"; then
+        # Si la rama está protegida, git rechaza el borrado (GH006):
+        # se quita la protección primero y luego se elimina la rama.
+        curl -s -o /dev/null -X DELETE \
+          -H "Authorization: Bearer $GITHUB_TOKEN" \
+          "https://api.github.com/repos/$full_name/branches/$br/protection" > /dev/null
+        if git -c credential.helper="$GIT_CRED_HELPER" push origin --delete "$br" > /dev/null 2>&1; then
+          echo "Rama $br eliminada del remoto"
+        else
+          echo "ADVERTENCIA: no se pudo eliminar $br del remoto (revisa permisos)."
+        fi
       fi
     done
   )
@@ -349,20 +278,17 @@ for name in "${REPO_DIRS[@]}"; do
   fi
 
   # 8) Borrar main (remoto y local) — ya la reemplazó development
-  if git ls-remote --heads origin main | grep -q "refs/heads/main"; then
+  main_en_remoto="$(git -C "$dir" -c credential.helper="$GIT_CRED_HELPER" \
+    ls-remote --heads origin refs/heads/main 2>/dev/null || true)"
+  if [ -n "$main_en_remoto" ]; then
     echo "Borrando main en el remoto..."
-    git -C "$dir" -c credential.helper="$GIT_CRED_HELPER" push origin --delete main
-    echo "  main eliminada en el remoto"
+    git -C "$dir" -c credential.helper="$GIT_CRED_HELPER" push origin --delete main || \
+      echo "  ADVERTENCIA: no se pudo borrar main del remoto (se continúa)."
   fi
   if git -C "$dir" show-ref --verify --quiet refs/heads/main; then
     git -C "$dir" branch -D main > /dev/null 2>&1 || true
     echo "  main eliminada localmente"
   fi
-
-  # 9) Proteger quality y production con las reglas señaladas
-  for br in "${BRANCHES_PROTEGIDAS[@]}"; do
-    proteger_rama "$full_name" "$br"
-  done
 
   echo "  ✔ https://github.com/$GH_OWNER/$name"
 done
@@ -370,8 +296,8 @@ done
 banner "RESUMEN"
 for name in "${REPO_DIRS[@]}"; do
   echo "  ✔ https://github.com/$GH_OWNER/$name"
-  echo "      Ramas: development (por defecto) | quality (protegida) | production (protegida)"
-  echo "      main: eliminada"
+  echo "      Ramas: development (única, por defecto)"
+  echo "      quality/production/main: eliminadas"
 done
 
 # Escribe/actualiza el nombre del repositorio en secrets.txt
