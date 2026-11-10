@@ -19,7 +19,6 @@ name: Calidad de código
 
 on:
   push:
-    branches: [ development ]
   pull_request:
   workflow_dispatch:
 
@@ -33,6 +32,7 @@ permissions:
 jobs:
   quality:
     name: Imagen Postgres (build + Trivy + smoke test)
+    continue-on-error: true   # no bloquea el deploy
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

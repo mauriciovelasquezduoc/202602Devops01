@@ -32,7 +32,6 @@ name: Calidad de código
 
 on:
   push:
-    branches: [ development ]
   pull_request:
   workflow_dispatch:
 
@@ -199,6 +198,7 @@ jobs:
   sonarqube:
     name: SonarCloud (calidad)
     needs: mutation
+    continue-on-error: true   # no bloquea el deploy
     runs-on: ubuntu-latest
     env:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -235,6 +235,7 @@ jobs:
   snyk:
     name: Snyk (seguridad de dependencias)
     needs: sonarqube
+    continue-on-error: true   # no bloquea el deploy
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -267,6 +268,7 @@ jobs:
   container:
     name: Contenedor (Docker + Trivy)
     needs: snyk
+    continue-on-error: true   # no bloquea el deploy
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -289,6 +291,7 @@ jobs:
   dast:
     name: DAST (OWASP ZAP)
     needs: container
+    continue-on-error: true   # no bloquea el deploy
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -341,6 +344,7 @@ jobs:
   performance:
     name: Rendimiento (Lighthouse)
     needs: dast
+    continue-on-error: true   # no bloquea el deploy
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

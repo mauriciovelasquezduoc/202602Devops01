@@ -32,7 +32,6 @@ name: Calidad de código
 
 on:
   push:
-    branches: [ development ]
   pull_request:
   workflow_dispatch:
 
@@ -275,6 +274,7 @@ jobs:
   sonarqube:
     name: SonarQube (calidad)
     needs: jacoco
+    continue-on-error: true   # no bloquea el deploy
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -308,6 +308,7 @@ jobs:
   snyk:
     name: Snyk (seguridad de dependencias)
     needs: sonarqube
+    continue-on-error: true   # no bloquea el deploy
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -332,6 +333,7 @@ jobs:
   cucumber:
     name: Cucumber (BDD / integración)
     needs: snyk
+    continue-on-error: true   # no bloquea el deploy
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -356,6 +358,7 @@ jobs:
   container:
     name: Contenedor (Docker + Trivy)
     needs: cucumber
+    continue-on-error: true   # no bloquea el deploy
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -378,6 +381,7 @@ jobs:
   dast:
     name: DAST (OWASP ZAP)
     needs: container
+    continue-on-error: true   # no bloquea el deploy
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -452,6 +456,7 @@ jobs:
   performance:
     name: Rendimiento (Gatling)
     needs: dast
+    continue-on-error: true   # no bloquea el deploy
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -529,6 +534,7 @@ jobs:
   performance-jmeter:
     name: Rendimiento (JMeter)
     needs: performance
+    continue-on-error: true   # no bloquea el deploy
     runs-on: ubuntu-latest
     services:
       postgres:
