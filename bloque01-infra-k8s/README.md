@@ -1,6 +1,11 @@
 # Bloque 01 - Infraestructura K8s
 
-Este bloque consolida la preparacion de infraestructura de `guia` bloques 1, 2 y 3 para llegar rapidamente a un entorno Kubernetes listo en AWS.
+> 🎯 **Objetivo:** crear la infraestructura cloud (VPC multi-AZ + cluster EKS + nodos SPOT) mediante infraestructura como código, dejando la base lista para desplegar.
+> ⏱️ **Duración estimada:** 25–35 min (la creación de EKS toma 10–15 min)
+> 📋 **Prerrequisitos:** contenedor `devops-eks-lab` con sesión AWS Academy activa (Paso 03)
+> 📦 **Evidencia:** reporte en `reports/` con stacks `CREATE_COMPLETE` y nodos `Ready`
+
+Este bloque consolida la preparación de infraestructura (equivalente a los bloques 1, 2 y 3 de la guía original) para llegar rápidamente a un entorno Kubernetes listo en AWS.
 
 El script principal es:
 

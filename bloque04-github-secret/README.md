@@ -1,5 +1,10 @@
 # Configuración de Secrets en GitHub
 
+> 🎯 **Objetivo:** automatizar la creación de los secrets que necesitan los pipelines de GitHub Actions (credenciales AWS, tokens de calidad/seguridad).
+> ⏱️ **Duración estimada:** 5–10 min
+> 📋 **Prerrequisitos:** repositorios GitHub creados (Paso 04); `secrets.txt` completo
+> 📦 **Evidencia:** secrets visibles en *Settings → Secrets and variables → Actions* de cada repo
+
 ## Prerrequisitos
 
 Los repositorios de GitHub deben estar creados **antes** de ejecutar este script:

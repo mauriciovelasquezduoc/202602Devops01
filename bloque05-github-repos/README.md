@@ -1,6 +1,9 @@
 # Guía de Despliegue - GitHub Actions CI/CD
 
-
+> 🎯 **Objetivo:** ejecutar el ciclo CI/CD completo: calidad (Sonar/Snyk/Trivy/JaCoCo) como compuerta y deploy automático a EKS con versionado semántico.
+> ⏱️ **Duración estimada:** 30–45 min (los pipelines tardan varios minutos c/u)
+> 📋 **Prerrequisitos:** bloque 04 aplicado (secrets); cluster e imágenes listos
+> 📦 **Evidencia:** workflows en verde y la app actualizada en el LoadBalancer
 
 ## Agregar wf para hacer deploy
 

@@ -1,5 +1,10 @@
 # Guía ECR - Repositorios de Contenedores Docker
 
+> 🎯 **Objetivo:** crear los repositorios privados en Elastic Container Registry y publicar las imágenes de la aplicación que consumirá Kubernetes.
+> ⏱️ **Duración estimada:** 20–30 min
+> 📋 **Prerrequisitos:** bloque 01 aplicado (VPC con endpoints); imágenes construidas
+> 📦 **Evidencia:** 3 repositorios ECR con imágenes (`ep02-database`, `ep02-backend`, `ep02-frontend`)
+
 ## Estructura del Proyecto
 
 ```

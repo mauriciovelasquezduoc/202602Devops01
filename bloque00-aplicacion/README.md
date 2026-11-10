@@ -1,5 +1,10 @@
 # Ejecución Local - Gestor de Alumnos
 
+> 🎯 **Objetivo:** ejecutar localmente la aplicación de tres capas y comprender su estructura: es la misma que se contenerizará y desplegará en AWS.
+> ⏱️ **Duración estimada:** 30–40 min (incluye `crear_repos.sh`)
+> 📋 **Prerrequisitos:** Docker Desktop instalado y corriendo; cuenta de GitHub
+> 📦 **Evidencia:** los 3 contenedores en verde y la app respondiendo en el navegador; 3 repos GitHub creados
+
 ## Requisitos Previos
 
 1. **Docker Desktop** debe estar instalado y ejecutándose

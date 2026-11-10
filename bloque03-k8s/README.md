@@ -1,9 +1,14 @@
 # Guía Kubernetes - Arquitectura de Microservicios
 
+> 🎯 **Objetivo:** desplegar la aplicación en Kubernetes con configuración centralizada (`values.yaml` → manifiestos), health checks y autoscaling (HPA).
+> ⏱️ **Duración estimada:** 15–20 min
+> 📋 **Prerrequisitos:** bloque 01 aplicado (cluster EKS) y bloque 02 (imágenes en ECR)
+> 📦 **Evidencia:** pods `Running` en namespace `ep02` y URL pública del LoadBalancer
+
 ## Estructura del Proyecto
 
 ```
-bloque02-k8s/
+bloque03-k8s/
 ├── values.yaml              # Configuración centralizada
 ├── templates/               # Plantillas YAML con variables
 │   ├── namespace.yaml
