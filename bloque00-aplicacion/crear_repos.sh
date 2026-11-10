@@ -238,11 +238,32 @@ for name in "${REPO_DIRS[@]}"; do
     fi
 
     # 5) Crear el repo vacío si no existe (el remoto origin ya está en el
-    #    paso 2; el push de development queda como rama por defecto)
+    #    paso 2; el push de development queda como rama por defecto).
+    #    Con reintentos: GitHub aplica "secondary rate limit" si se crean
+    #    varios repos en poco tiempo y falla con 403/422.
     if [ "$existe_remoto" -eq 0 ]; then
       echo "Creando repositorio $full_name (vacío, el contenido se sube a continuación)..."
-      if ! gh repo create "$GH_OWNER/$name" --public > /dev/null; then
-        echo "ERROR: no se pudo crear el repositorio $full_name en GitHub."
+      intentos=0
+      max_intentos="${CREAR_REPO_MAX_INTENTOS:-12}"
+      espera_segundos="${CREAR_REPO_ESPERA:-60}"
+      creado=0
+      while [ "$intentos" -lt "$max_intentos" ]; do
+        intentos=$((intentos + 1))
+        if gh repo create "$GH_OWNER/$name" --public > /dev/null 2> /tmp/gh-create-repo-err.txt; then
+          creado=1
+          break
+        fi
+        if grep -qi "too quickly\|rate limit\|temporarily\|try again later" /tmp/gh-create-repo-err.txt; then
+          echo "  GitHub limitando creación (abuse/rate limit). Reintento $intentos/$max_intentos en $espera_segundos s..."
+          sleep "$espera_segundos"
+        else
+          break
+        fi
+      done
+      rm -f /tmp/gh-create-repo-err.txt
+      if [ "$creado" -eq 0 ]; then
+        echo "ERROR: no se pudo crear $full_name en GitHub tras $intentos intento(s)."
+        echo "  Espera unos minutos y vuelve a ejecutar el script (los pasos son idempotentes)."
         exit 1
       fi
     fi
