@@ -276,12 +276,19 @@ for name in "${REPO_DIRS[@]}"; do
       if git show-ref --verify --quiet refs/remotes/origin/main; then
         # Repos legados: development nace de lo que era main.
         if git show-ref --verify --quiet refs/heads/development; then
-          git checkout development > /dev/null 2>&1
+          git checkout development || { echo "ERROR: no se pudo checkout development"; exit 1; }
           git -c credential.helper="$GIT_CRED_HELPER" merge --ff-only origin/main > /dev/null 2>&1 || \
             echo "ADVERTENCIA: development local y origin/main divergen (se continúa con development local)."
         else
           echo "Creando development local a partir de origin/main..."
-          git checkout -B development origin/main > /dev/null 2>&1
+          if ! git checkout -B development origin/main; then
+            # Untracked locales chocan con el contenido de origin/main: se
+            # asienta development en origin/main SIN tocar el árbol de trabajo
+            # (los cambios locales se conservan y se commitean en el paso 4).
+            git update-ref "refs/heads/$DEFAULT_BRANCH" refs/remotes/origin/main
+            echo "  (checkout omitido por archivos locales en conflicto; se asentó" \
+                 "development en origin/main sin modificar el directorio de trabajo)"
+          fi
         fi
       fi
 
