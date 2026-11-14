@@ -433,7 +433,7 @@ detalle_pods() {
     local deseados_listos estado pods detalle
     deseados="$(kubectl get deployment "$app_label" -n "$NAMESPACE" -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "?")"
     listos="$(kubectl get deployment "$app_label" -n "$NAMESPACE" -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo 0)"
-    pods="$(kubectl get pods -n "$NAMESPACE" -l "app=$app_label" --no-headers 2>/dev/null || true)"
+    pods="$(kubectl get pods -n "$NAMESPACE" -l "app=$app_label" -o wide --no-headers 2>/dev/null || true)"
 
     if [ "${listos:-0}" -eq "${deseados:-0}" ] && [ -n "${pods// /}" ] && ! echo "$pods" | awk '{exit ($3=="Running" && $2 ~ /^[0-9]+\/[0-9]+$/) ? 1 : 0}'; then
       ok "$app_label: $listos/$deseados Ready — todo OK"
