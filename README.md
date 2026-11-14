@@ -91,14 +91,12 @@ El paso a paso está en:
 
 ## Paso 06 ECR
 
-En el archivo `bloque02-ecr/repositorios.yaml` se debe poner el nombre del repo que tendrá cada imagen. 
+En el archivo `bloque02-ecr/repositorios.yaml` se debe poner el nombre del repo que tendrá cada imagen.
 
 ```
 cd /root/work/bloque02-ecr
 ./ejecutar-ecr.sh
 ```
-
-
 
 Recomendación: dejar que comience con `ep02-` y así mantener un patrón que más adelante se usará.
 
@@ -107,7 +105,6 @@ Recomendación: dejar que comience con `ep02-` y así mantener un patrón que m�
 ## Paso 07 K8s
 
 Ahora aplicaremos las configuraciones para todas las aplicaciones.
-
 
 ```
 cd /root/work/bloque03-k8s
@@ -120,9 +117,7 @@ Se debe cambiar los datos de dónde estarán las imágenes de ECR, y eso se hace
 
 ## Paso 08 GitHub secrets
 
-Este paso permite crear en forma automática las variables necesarias para que opere el pipeline. 
-
-
+Este paso permite crear en forma automática las variables necesarias para que opere el pipeline.
 
 ```
 cd /root/work/bloque04-github-secret
@@ -135,9 +130,7 @@ Los repositorios deben estar creados en GitHub.
 
 ## Paso 09 GitHub repos
 
-Ahora vamos a ir a GitHub y clonaremos cada proyecto. 
-
-
+Ahora vamos a ir a GitHub y clonaremos cada proyecto.
 
 ```
 cd /root/work/bloque05-github-repos
@@ -148,15 +141,24 @@ Debe hacerse clone de cada proyecto:
 
 [README.md](bloque05-github-repos/README.md)
 
-## Paso 10 Observabilidad (Semana 14)
+## Paso 11 url pública y datos de producción
+
+
+```
+cd /root/work/
+bash url-app.sh 
+```
+
+
+## Paso 10 Observabilidad 
 
 Convertimos el laboratorio en una sala de control: métrica personalizada del microservicio en CloudWatch, alarmas con notificación SNS, y dos demos en vivo (borrar pods y ver la auto-reparación; prueba de carga para que el HPA escale y salten las alarmas). Incluye opcional de service mesh con Istio + Kiali.
-
 
 ```
 cd /root/work/bloque06-observabilidad
 
-bash ejecutar.sh                 # 1. preparar: SNS + alarmas + métrica personalizada
+bash ejecutar.sh               
+bash crear-dashboard.sh  
 ```
 
 [README.md](bloque06-observabilidad/README.md)

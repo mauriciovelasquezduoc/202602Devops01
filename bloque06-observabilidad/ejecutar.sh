@@ -124,10 +124,17 @@ if [ -n "$TOPIC_ARN" ]; then
   SNS_ARN="$TOPIC_ARN"
   ok "Topic SNS: $TOPIC_ARN"
   add_report "SNS topic: $TOPIC_ARN"
-  echo ""
-  echo -e "${AMAR}  Para recibir un CORREO cuando salte una alarma, ingresa tu email.${NC}"
-  echo -e "${AMAR}  (Enter para omitir. La suscripción hay que confirmarla desde el correo.)${NC}"
-  read -r -p "  Email (opcional): " ALERT_EMAIL
+  # Email de alertas: primero se lee de secrets.txt (variable alertemail=);
+  # si no existe o está vacía, se pregunta interactivamente.
+  ALERT_EMAIL="${alertemail:-}"
+  if [ -n "$ALERT_EMAIL" ]; then
+    ok "Email de alertas leído de secrets.txt: $ALERT_EMAIL"
+  else
+    echo ""
+    echo -e "${AMAR}  Para recibir un CORREO cuando salte una alarma, ingresa tu email.${NC}"
+    echo -e "${AMAR}  (Enter para omitir. La suscripción hay que confirmarla desde el correo.)${NC}"
+    read -r -p "  Email (opcional): " ALERT_EMAIL
+  fi
   if [ -n "${ALERT_EMAIL:-}" ]; then
     if aws sns subscribe --region "$REGION" --topic-arn "$TOPIC_ARN" \
          --protocol email --notification-endpoint "$ALERT_EMAIL" >/dev/null 2>&1; then
