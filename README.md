@@ -141,7 +141,7 @@ Debe hacerse clone de cada proyecto:
 
 [README.md](bloque05-github-repos/README.md)
 
-## Paso 11 url pública y datos de producción
+## Paso 10 url pública y datos de producción
 
 
 ```
@@ -150,7 +150,7 @@ bash url-app.sh
 ```
 
 
-## Paso 10 Observabilidad 
+## Paso 11 Observabilidad
 
 Convertimos el laboratorio en una sala de control: métrica personalizada del microservicio en CloudWatch, alarmas con notificación SNS, y dos demos en vivo (borrar pods y ver la auto-reparación; prueba de carga para que el HPA escale y salten las alarmas). Incluye opcional de service mesh con Istio + Kiali.
 
@@ -158,7 +158,7 @@ Convertimos el laboratorio en una sala de control: métrica personalizada del mi
 cd /root/work/bloque06-observabilidad
 
 bash ejecutar.sh               
-bash crear-dashboard.sh  
+bash crear-dashboard.sh
 ```
 
 [README.md](bloque06-observabilidad/README.md)
