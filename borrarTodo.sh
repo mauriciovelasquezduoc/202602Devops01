@@ -16,6 +16,10 @@
 # CLAVE: los ELB y los SG k8s-* deben borrarse ANTES que la VPC; si no,
 # CloudFormation falla con DELETE_FAILED (ENIs/SG en uso).
 #
+# MODO VERBOSO: cada comando aws/kubectl se muestra antes de ejecutarse,
+# su salida se imprime, el borrado de stacks se sondea cada 30s mostrando
+# el estado, y ante un DELETE_FAILED se listan los recursos culpables.
+#
 # Uso:
 #   bash borrarTodo.sh          # pide confirmación
 #   bash borrarTodo.sh -y       # sin confirmación
@@ -42,6 +46,8 @@ log()  { echo -e "$*"; }
 ok()   { echo -e "  ${VERDE}OK  $*${NC}"; }
 warn() { echo -e "  ${AMAR}$*${NC}"; }
 err()  { echo -e "  ${ROJO}$*${NC}"; }
+# Muestra en pantalla el comando que se va a ejecutar (modo verboso)
+show_cmd() { log "  ${AZUL}→ \$ ${*}${NC}"; }
 
 # ── Cargar credenciales de secrets.txt ──────────────────────────────────────
 if [ -f "$SECRETS_FILE" ]; then
@@ -75,18 +81,46 @@ stack_status() {
     --query "Stacks[0].StackStatus" --output text 2>/dev/null || true
 }
 
+# Muestra los recursos que provocaron el DELETE_FAILED
+show_stack_errors() {
+  local stack="$1"
+  show_cmd aws cloudformation describe-stack-events --stack-name "$stack" \
+    --query "StackEvents[?ResourceStatus=='DELETE_FAILED'].[LogicalResourceId,ResourceStatusReason]"
+  aws cloudformation describe-stack-events --stack-name "$stack" --region "$REGION" \
+    --query "StackEvents[?ResourceStatus=='DELETE_FAILED'].[LogicalResourceId,ResourceStatusReason]" \
+    --output text 2>/dev/null | head -10 | sed 's/^/      /' || true
+}
+
 delete_cf_stack() {
-  local stack="$1" tries=0 status
+  local stack="$1" tries=0 status elapsed polls=0 out
+  local max_polls=60   # 60 x 30s = timeout de seguridad a los 30 min
   status="$(stack_status "$stack")"
   if [ -z "$status" ]; then warn "Stack $stack no existe"; return 0; fi
+  warn "Estado inicial del stack: $status"
   while :; do
-    aws cloudformation delete-stack --stack-name "$stack" --region "$REGION" 2>/dev/null
-    if aws cloudformation wait stack-delete-complete --stack-name "$stack" --region "$REGION" 2>/dev/null; then
-      ok "Stack $stack eliminado"; return 0
+    show_cmd aws cloudformation delete-stack --stack-name "$stack" --region "$REGION"
+    if out="$(aws cloudformation delete-stack --stack-name "$stack" --region "$REGION" 2>&1)"; then
+      ok "delete-stack enviado"
+    else
+      warn "delete-stack rechazado: $out"
     fi
+    log "  ${AMAR}Esperando borrado (sondeo cada 30s)…${NC}"
+    elapsed=0; polls=0
+    while :; do
+      sleep 30; elapsed=$((elapsed + 30)); polls=$((polls + 1))
+      status="$(stack_status "$stack")"
+      if [ -z "$status" ] || [ "$status" = "DELETE_COMPLETE" ]; then
+        ok "Stack $stack eliminado (${elapsed}s de espera)"; return 0
+      fi
+      warn "  … ${elapsed}s — estado: $status"
+      case "$status" in *DELETE_FAILED*|*ROLLBACK*) break ;; esac
+      if [ "$polls" -ge "$max_polls" ]; then
+        err "Timeout de 30 min esperando $stack (estado: $status)"; break
+      fi
+    done
     tries=$((tries + 1))
-    status="$(stack_status "$stack")"
-    warn "No se pudo borrar $stack (estado: ${status:-?}), intento $tries/3"
+    err "No se pudo borrar $stack (estado: $status), intento $tries/3"
+    show_stack_errors "$stack"
     [ "$tries" -ge 3 ] && return 1
     sleep 15
   done
@@ -98,26 +132,57 @@ purge_vpc_dependencies() {
   local vpc_id="$1"
   [ -n "$vpc_id" ] && [ "$vpc_id" != "None" ] || { warn "Sin VPC ID; salto purga"; return 0; }
 
-  local arn lb sg
-  for arn in $(aws elbv2 describe-load-balancers --region "$REGION" \
-      --query "LoadBalancers[?VpcId=='$vpc_id'].LoadBalancerArn" --output text 2>/dev/null); do
-    aws elbv2 delete-load-balancer --load-balancer-arn "$arn" --region "$REGION" >/dev/null 2>&1 \
-      && ok "LBv2 borrado: $arn" || warn "no se pudo borrar $arn"
-  done
-  for lb in $(aws elb describe-load-balancers --region "$REGION" \
-      --query "LoadBalancerDescriptions[?VPCId=='$vpc_id'].LoadBalancerName" --output text 2>/dev/null); do
-    aws elb delete-load-balancer --load-balancer-name "$lb" --region "$REGION" >/dev/null 2>&1 \
-      && ok "ELB clásico borrado: $lb" || warn "no se pudo borrar $lb"
-  done
-  warn "Esperando 30s a que se liberen las ENIs de los LB…"; sleep 30
+  local arn lb sg out lbs_v2 lbs_cl sgs
+  show_cmd aws elbv2 describe-load-balancers --region "$REGION" --query "…VpcId=='$vpc_id'…"
+  lbs_v2="$(aws elbv2 describe-load-balancers --region "$REGION" \
+      --query "LoadBalancers[?VpcId=='$vpc_id'].LoadBalancerArn" --output text 2>/dev/null || true)"
+  if [ -n "$lbs_v2" ] && [ "$lbs_v2" != "None" ]; then
+    for arn in $lbs_v2; do
+      show_cmd aws elbv2 delete-load-balancer --load-balancer-arn "$arn"
+      if out="$(aws elbv2 delete-load-balancer --load-balancer-arn "$arn" --region "$REGION" 2>&1)"; then
+        ok "LBv2 borrado: $arn"
+      else
+        warn "no se pudo borrar $arn: $out"
+      fi
+    done
+  else
+    warn "sin ELBs v2 en la VPC $vpc_id"
+  fi
+  show_cmd aws elb describe-load-balancers --region "$REGION" --query "…VPCId=='$vpc_id'…"
+  lbs_cl="$(aws elb describe-load-balancers --region "$REGION" \
+      --query "LoadBalancerDescriptions[?VPCId=='$vpc_id'].LoadBalancerName" --output text 2>/dev/null || true)"
+  if [ -n "$lbs_cl" ] && [ "$lbs_cl" != "None" ]; then
+    for lb in $lbs_cl; do
+      show_cmd aws elb delete-load-balancer --load-balancer-name "$lb"
+      if out="$(aws elb delete-load-balancer --load-balancer-name "$lb" --region "$REGION" 2>&1)"; then
+        ok "ELB clásico borrado: $lb"
+      else
+        warn "no se pudo borrar $lb: $out"
+      fi
+    done
+  else
+    warn "sin ELBs clásicos en la VPC $vpc_id"
+  fi
+  warn "Esperando 30s a que se liberen las ENIs de los LB (se liberan de forma asíncrona)…"
+  sleep 30
 
-  for sg in $(aws ec2 describe-security-groups --region "$REGION" \
+  show_cmd aws ec2 describe-security-groups --region "$REGION" --filters "vpc-id=$vpc_id" "k8s-*/eks-cluster-sg"
+  sgs="$(aws ec2 describe-security-groups --region "$REGION" \
       --filters "Name=vpc-id,Values=$vpc_id" \
       --query "SecurityGroups[?GroupName!='default' && (starts_with(GroupName,'k8s-') || starts_with(GroupName,'eks-cluster-sg'))].GroupId" \
-      --output text 2>/dev/null); do
-    aws ec2 delete-security-group --group-id "$sg" --region "$REGION" >/dev/null 2>&1 \
-      && ok "SG borrado: $sg" || warn "SG $sg en uso (se reintentará al borrar la VPC)"
-  done
+      --output text 2>/dev/null || true)"
+  if [ -n "$sgs" ] && [ "$sgs" != "None" ]; then
+    for sg in $sgs; do
+      show_cmd aws ec2 delete-security-group --group-id "$sg"
+      if out="$(aws ec2 delete-security-group --group-id "$sg" --region "$REGION" 2>&1)"; then
+        ok "SG borrado: $sg"
+      else
+        warn "SG $sg en uso (se reintentará al borrar la VPC): $out"
+      fi
+    done
+  else
+    warn "sin SGs k8s-*/eks-cluster-sg en la VPC $vpc_id"
+  fi
 }
 
 # ── 0. Conectividad AWS ─────────────────────────────────────────────────────
@@ -140,14 +205,21 @@ CLUSTER_STATUS="$(aws eks describe-cluster --name "$CLUSTER_NAME" --region "$REG
 if [ "$CLUSTER_STATUS" = "ACTIVE" ]; then
   aws eks update-kubeconfig --region "$REGION" --name "$CLUSTER_NAME" >/dev/null 2>&1 || true
 fi
-if kubectl get namespace "$NAMESPACE" >/dev/null 2>&1; then
-  kubectl delete hpa        -n "$NAMESPACE" --all --grace-period=0 --force >/dev/null 2>&1 || true
-  kubectl delete deployment -n "$NAMESPACE" --all --grace-period=0 --force >/dev/null 2>&1 || true
-  kubectl delete svc        -n "$NAMESPACE" --all --grace-period=0 --force >/dev/null 2>&1 || true
-  kubectl delete pod        -n "$NAMESPACE" --all --grace-period=0 --force >/dev/null 2>&1 || true
-  kubectl delete namespace  "$NAMESPACE" --ignore-not-found --grace-period=0 --force >/dev/null 2>&1 || true
-  for _ in $(seq 1 30); do kubectl get namespace "$NAMESPACE" >/dev/null 2>&1 || break; sleep 2; done
-  kubectl get namespace "$NAMESPACE" >/dev/null 2>&1 && warn "Namespace aún existe (se resolverá al borrar el cluster)" || ok "Namespace $NAMESPACE eliminado"
+if kubectl get namespace "$NAMESPACE" --request-timeout=15s >/dev/null 2>&1; then
+  for kind in hpa deployment svc pod; do
+    show_cmd kubectl delete "$kind" -n "$NAMESPACE" --all --grace-period=0 --force
+    kubectl delete "$kind" -n "$NAMESPACE" --all --grace-period=0 --force --request-timeout=15s 2>&1 | sed 's/^/    /' || true
+  done
+  show_cmd kubectl delete namespace "$NAMESPACE" --grace-period=0 --force
+  kubectl delete namespace "$NAMESPACE" --ignore-not-found --grace-period=0 --force --request-timeout=15s 2>&1 | sed 's/^/    /' || true
+  log "  esperando terminación del namespace (hasta 60s)…"
+  local_terminated=""
+  for _ in $(seq 1 30); do
+    if ! kubectl get namespace "$NAMESPACE" --request-timeout=15s >/dev/null 2>&1; then local_terminated=1; printf '\n'; break; fi
+    printf '.'; sleep 2
+  done
+  [ -z "$local_terminated" ] && printf '\n'
+  kubectl get namespace "$NAMESPACE" --request-timeout=15s >/dev/null 2>&1 && warn "Namespace aún existe (se resolverá al borrar el cluster)" || ok "Namespace $NAMESPACE eliminado"
 else
   warn "Namespace $NAMESPACE no existe"
 fi
@@ -183,8 +255,12 @@ ECR_REPOS="$(aws ecr describe-repositories --region "$REGION" \
   --query "repositories[?starts_with(repositoryName, '$ECR_PREFIX')].repositoryName" --output text 2>/dev/null || true)"
 if [ -n "$ECR_REPOS" ] && [ "$ECR_REPOS" != "None" ]; then
   for repo in $ECR_REPOS; do
-    aws ecr delete-repository --repository-name "$repo" --region "$REGION" --force >/dev/null 2>&1 \
-      && ok "$repo eliminado" || err "$repo: error al borrar"
+    show_cmd aws ecr delete-repository --repository-name "$repo" --force
+    if out="$(aws ecr delete-repository --repository-name "$repo" --region "$REGION" --force 2>&1)"; then
+      ok "$repo eliminado"
+    else
+      err "$repo: error al borrar — $out"
+    fi
   done
 else
   warn "No hay repos ECR con prefijo '$ECR_PREFIX'"
@@ -197,8 +273,12 @@ LOG_GROUPS="$(aws logs describe-log-groups --region "$REGION" \
   --query "logGroups[?contains(logGroupName, '/aws/eks/$CLUSTER_NAME')].logGroupName" --output text 2>/dev/null || true)"
 if [ -n "$LOG_GROUPS" ] && [ "$LOG_GROUPS" != "None" ]; then
   for lg in $LOG_GROUPS; do
-    aws logs delete-log-group --log-group-name "$lg" --region "$REGION" >/dev/null 2>&1 \
-      && ok "log group borrado: $lg" || warn "no se pudo borrar $lg"
+    show_cmd aws logs delete-log-group --log-group-name "$lg"
+    if out="$(aws logs delete-log-group --log-group-name "$lg" --region "$REGION" 2>&1)"; then
+      ok "log group borrado: $lg"
+    else
+      warn "no se pudo borrar $lg: $out"
+    fi
   done
 else
   warn "No hay log groups de $CLUSTER_NAME"

@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Bloque 06 — Observabilidad · Guía paso a paso (láminas)</title>
+<style>
+  /* ============================================================
+     BLOQUE 06 · GUÍA PASO A PASO — 15 láminas 16:9 (1280x720)
+     Estilo: fondo blanco, rectángulo azul #367EDB arriba-izquierda,
+     título negro bold, texto #333, viñetas circulares, panel
+     terminal a la derecha (56%) simulando la salida real.
+     ============================================================ */
+  @page { size: 1280px 720px; margin: 0; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #e8e8e8; }
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .sheet {
+    width: 1280px; height: 720px;
+    background: #ffffff;
+    position: relative;
+    display: flex;
+    break-after: page; page-break-after: always;
+    overflow: hidden;
+  }
+  .sheet:last-child { break-after: auto; page-break-after: auto; }
+
+  /* --- Columna izquierda (~44%): texto --- */
+  .col-l {
+    width: 44%; min-width: 44%;
+    padding: 56px 38px 58px 56px;
+    position: relative;
+  }
+  /* Rectángulo azul decorativo, arriba a la izquierda, sin texto */
+  .blue-rect {
+    position: absolute; top: 0; left: 0;
+    width: 190px; height: 20px;
+    background: #367EDB;
+  }
+  .kicker {
+    font-size: 14px; font-weight: 700; letter-spacing: 2.2px;
+    color: #367EDB; text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+  h1 {
+    font-size: 37px; line-height: 1.12; font-weight: 800;
+    color: #000000; letter-spacing: -0.4px;
+    margin-bottom: 16px;
+  }
+  .intro {
+    font-size: 19px; line-height: 1.28; color: #333333;
+    margin-bottom: 22px;
+  }
+  ul.bullets { list-style: none; }
+  ul.bullets li {
+    position: relative;
+    padding-left: 26px;
+    font-size: 16.5px; line-height: 1.3; color: #333333;
+    margin-bottom: 15px;
+  }
+  ul.bullets li::before {
+    content: "";
+    position: absolute; left: 2px; top: 8px;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #000000;
+  }
+  ul.bullets b { color: #000; }
+  .num {
+    position: absolute; right: 38px; bottom: 44px;
+    font-size: 60px; font-weight: 800; color: #EDF3FB; line-height: 1;
+  }
+
+  /* --- Columna derecha (~56%): terminal --- */
+  .col-r {
+    width: 56%; min-width: 56%;
+    padding: 40px 44px 36px 12px;
+    display: flex; flex-direction: column;
+  }
+  .term {
+    flex: 1;
+    background: #1e2430;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(15,30,60,0.25);
+    overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .term-head {
+    height: 40px; background: #2b3444;
+    display: flex; align-items: center;
+    padding: 0 16px; gap: 8px; flex: none;
+  }
+  .term-head .dot { width: 11px; height: 11px; border-radius: 50%; }
+  .dot.r { background: #ff5f57; } .dot.y { background: #febc2e; } .dot.g { background: #28c840; }
+  .term-head .t {
+    margin-left: 10px; font-family: Menlo, Consolas, monospace;
+    font-size: 12px; color: #9fb0c8;
+  }
+  .term pre {
+    flex: 1;
+    padding: 18px 20px 14px 20px;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12.6px; line-height: 1.62;
+    color: #d7e0ee; white-space: pre-wrap; word-break: break-word;
+    overflow: hidden;
+  }
+  .cap {
+    flex: none; padding-top: 10px;
+    font-size: 12px; color: #8a94a6; font-style: italic;
+  }
+
+  /* Colores de la salida real del laboratorio */
+  .b  { color: #7fb0ff; font-weight: 600; }   /* azul: timestamp / separador */
+  .ok { color: #4ade80; }                     /* ✔ verde */
+  .wr { color: #fbbf24; }                     /* ⚠ amarillo */
+  .fa { color: #f87171; }                     /* ✘ rojo */
+  .cp { color: #ffcb6b; }                     /* 🔎 CONCEPTO */
+  .ps { color: #6ee7f5; font-weight: 700; }   /* ━━━ PASO/ESCENA ━━━ */
+  .dm { color: #8d9cb5; }                     /* texto tenue */
+  .cm { color: #ffffff; font-weight: 700; }   /* comando tecleado */
+  .hl { color: #a5d6ff; }                     /* resaltado suave */
+
+  /* --- Pie de página --- */
+  .foot {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 36px; display: flex; align-items: center;
+    justify-content: space-between;
+    padding: 0 44px 0 56px;
+    font-size: 10.5px; letter-spacing: 1.4px; color: #9aa3b2;
+    border-top: 1px solid #eef1f5;
+  }
+</style>
+<script>
+// Utilidad de revisión: con #l5 muestra SOLO la lámina 5 (no altera el PDF final)
+window.addEventListener('load', function () {
+  if (location.hash.length > 1) {
+    var target = document.getElementById('l' + location.hash.slice(1));
+    if (target) {
+      var all = document.querySelectorAll('.sheet');
+      for (var i = 0; i < all.length; i++) {
+        if (all[i] !== target) all[i].style.display = 'none';
+      }
+    }
+  }
+});
+</script>
+</head>
+<body>
+
+<!-- ══════════════════ LÁMINA 1 · PORTADA ══════════════════ -->
+<section class="sheet" id="l1">
+  <div class="col-l">
+    <div class="blue-rect"></div>
+    <div class="kicker">Bloque 06 · Semana 14 · Monitoreo y Observabilidad</div>
+    <h1>Observabilidad en acción:<br>guía paso a paso del laboratorio</h1>
+    <p class="intro">Qué ejecutar, qué verás en pantalla y qué esperar en cada paso:
+    métricas personalizadas en CloudWatch, alarmas en vivo, auto-reparación de pods,
+    escalado con HPA y (opcional) service mesh con Kiali.</p>
+    <ul class="bullets">
+      <li><b>Sala de control:</b> el laboratorio deja de ser una app suelta y se convierte en un sistema monitoreado.</li>
+      <li><b>Evidencia automática:</b> cada script deja un reporte en <b>reports/</b> listo para tu informe.</li>
+      <li><b>Regla de oro:</b> ejecuta los pasos en orden, deja la demo 3 corriendo y limpia al final.</li>
+    </ul>
+    <div class="num">01</div>
+  </div>
+  <div class="col-r">
+    <div class="term">
+      <div class="term-head"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="t">devops-eks-lab — bash</span></div>
+<pre><span class="cm">$ cd /root/work/bloque06-observabilidad</span>
+
+<span class="dm"># El itinerario completo, en orden:</span>
+
+<span class="cm">$ bash ejecutar.sh</span>                  <span class="dm"># 1. preparar: SNS + alarmas + métrica</span>
+<span class="cm">$ bash demo-1-auto-reparacion.sh</span>    <span class="dm"># 2. borrar pods y ver la reconstrucción</span>
+<span class="cm">$ bash demo-2-prueba-carga.sh</span>       <span class="dm"># 3. carga HTTP: HPA escala y alarmas saltan</span>
+<span class="cm">$ bash demo-3-observatorio.sh</span>       <span class="dm"># 4. sala de control (otra terminal, en vivo)</span>
+<span class="cm">$ bash opcional-istio-kiali.sh</span>      <span class="dm"># 5. OPCIONAL: service mesh + Kiali</span>
+
+<span class="dm"># Al terminar la semana:</span>
+<span class="cm">$ bash limpiar-bloque06.sh</span>          <span class="dm"># borra alarmas + topic SNS</span>
+
+<span class="dm"># Tip de clase: abre 3 terminales del contenedor.
+#   · una con demo-3 corriendo siempre,
+#   · otra para las demos 1 y 2,
+#   · y en la tercera miras: kubectl get hpa -n ep02 -w</span></pre>
+    </div>
+    <div class="cap">Salida de ejemplo: los valores concretos (IDs, URL, tiempos) varían en tu sesión.</div>
+  </div>
+  <div class="foot"><span>BLOQUE 06 · OBSERVABILIDAD — GUÍA PASO A PASO</span><span>01 / 15</span></div>
+</section>
+
+<!-- ══════════════════ LÁMINA 2 · MAPA DE LA SESIÓN ══════════════════ -->
+<section class="sheet" id="l2">
+  <div class="col-l">
+    <div class="blue-rect"></div>
+    <div class="kicker">Mapa de la sesión</div>
+    <h1>Siete pasos, un orden, resultados claros</h1>
+    <p class="intro">Todos los scripts son idempotentes (puedes repetirlos sin romper nada)
+    y dejan evidencia. Este es el orden recomendado y el tiempo que pide cada uno.</p>
+    <ul class="bullets">
+      <li><b>Preparar (~2 min):</b> <b>ejecutar.sh</b> valida el entorno, crea el topic SNS y las 4 alarmas.</li>
+      <li><b>Provocar (~7–11 min):</b> demo-1 borra pods (2–6 min); demo-2 aplica 5 min de carga real.</li>
+      <li><b>Observar (continuo):</b> demo-3 se deja corriendo en otra terminal; refresh cada 15 s.</li>
+      <li><b>Extras:</b> crear-dashboard.sh (~1 min) e Istio+Kiali (opcional, 10–15 min). Cierre: limpiar-bloque06.sh.</li>
+    </ul>
+    <div class="num">02</div>
+  </div>
+  <div class="col-r">
+    <div class="term">
+      <div class="term-head"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="t">mapa de la sesión</span></div>
+<pre><span class="b">PASO   SCRIPT                        TIEMPO       DEJA / PRODUCE</span>
+─────────────────────────────────────────────────────────────────
+ 1     ejecutar.sh                   <span class="ok">~2 min</span>      4 alarmas CW + SNS
+                                                  reports/bloque06-*.md
+ 2     demo-1-auto-reparacion.sh     <span class="ok">2–6 min</span>     reports/demo1-timeline-*.md
+                                                  reports/demo1-resumen-*.md
+ 3     demo-2-prueba-carga.sh        <span class="ok">5 min</span>*      reports/demo2-carga-*.md
+ 4     demo-3-observatorio.sh        <span class="hl">continuo</span>     vista en vivo (Ctrl+C)
+ 5     crear-dashboard.sh            <span class="ok">~1 min</span>      dashboard ep02-observabilidad
+ 6     opcional-istio-kiali.sh       <span class="wr">10–15 min</span>    malla + Kiali en :20001
+ 7     limpiar-bloque06.sh           <span class="ok">~1 min</span>      borra alarmas + SNS
+
+<span class="dm">  * Con ESPERAR_BAJADA=1 se suma hasta 15 min de observación
+    del escalado hacia abajo (opcional pero recomendado).</span></pre>
+    </div>
+    <div class="cap">Los pasos 1→3 son el núcleo obligatorio de la semana; 5 y 6 son complementos.</div>
+  </div>
+  <div class="foot"><span>BLOQUE 06 · OBSERVABILIDAD — GUÍA PASO A PASO</span><span>02 / 15</span></div>
+</section>
+
+<!-- ══════════════════ LÁMINA 3 · REQUISITOS ══════════════════ -->
+<section class="sheet" id="l3">
+  <div class="col-l">
+    <div class="blue-rect"></div>
+    <div class="kicker">Requisitos previos</div>
+    <h1>Antes de empezar: lo que debe estar sano</h1>
+    <p class="intro">No hay que verificar nada a mano: <b>ejecutar.sh</b> valida el entorno
+    y se detiene con ✘ indicándote exactamente qué bloque aplicar primero.</p>
+    <ul class="bullets">
+      <li><b>Herencia del bloque03:</b> backend, frontend y BD en <b>Running</b> en el namespace <b>ep02</b>.</li>
+      <li><b>Sesión AWS:</b> credenciales Academy activas dentro del contenedor devops-eks-lab.</li>
+      <li><b>Herramientas:</b> aws, kubectl, jq y curl instaladas (el script las chequea).</li>
+      <li><b>Extra Kiali:</b> si harás el opcional, levanta el contenedor con <b>-p 20001:20001</b>.</li>
+    </ul>
+    <div class="num">03</div>
+  </div>
+  <div class="col-r">
+    <div class="term">
+      <div class="term-head"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="t">bash ejecutar.sh — validaciones [0/5]</span></div>
+<pre><span class="b">============================================================</span>
+ <span class="b"> [0/5] Validaciones previas</span>
+<span class="b">============================================================</span>
+  <span class="ok">✔</span> Herramienta OK: aws
+  <span class="ok">✔</span> Herramienta OK: kubectl · jq · curl
+  <span class="ok">✔</span> Sesión AWS válida — cuenta 052812055460, región us-east-1
+  <span class="ok">✔</span> Cluster EKS laboratorio-ep02-eks ACTIVE
+  <span class="ok">✔</span> Nodos Ready: 1
+  <span class="ok">✔</span> Backend ep02-backend corriendo (1 pod(s) Ready)
+  <span class="ok">✔</span> HPA visibles (metrics-server operativo)
+
+<span class="dm">— Si algo no está, el script se detiene y te dice qué hacer: —</span>
+  <span class="fa">✘</span> <span class="dm">No hay credenciales AWS activas. Abre 'AWS Details'</span>
+    <span class="dm">en Academy y vuelve a iniciar el contenedor.</span>
+  <span class="fa">✘</span> <span class="dm">El cluster no está ACTIVE. Ejecuta primero el bloque01.</span>
+  <span class="fa">✘</span> <span class="dm">No existe deploy/ep02-backend. Aplica primero el bloque03.</span>
+  <span class="wr">⚠</span> <span class="dm">No hay HPA: la demo de carga no podrá escalar.</span></pre>
+    </div>
+    <div class="cap">✔ = sigue avanzando · ✘ = detente y corrige el bloque previo · ⚠ = aviso no bloqueante.</div>
+  </div>
+  <div class="foot"><span>BLOQUE 06 · OBSERVABILIDAD — GUÍA PASO A PASO</span><span>03 / 15</span></div>
+</section>
+
+<!-- ══════════════════ LÁMINA 4 · EJECUTAR.SH (1) ══════════════════ -->
+<section class="sheet" id="l4">
+  <div class="col-l">
+    <div class="blue-rect"></div>
+    <div class="kicker">Paso 1 · bash ejecutar.sh</div>
+    <h1>Preparar la observabilidad: recursos y notificaciones</h1>
+    <p class="intro">El script descubre los recursos reales de tu cluster y arma la
+    infraestructura de aviso: un topic SNS para correo y la primera publicación
+    de tu métrica personalizada.</p>
+    <ul class="bullets">
+      <li><b>Descubre solo:</b> toma los instance IDs de los nodos y el LoadBalancer del frontend, sin copiar nada a mano.</li>
+      <li><b>SNS opcional:</b> si ingresas tu email, llegará un correo cada vez que salte una alarma (¡confírmalo desde tu bandeja!).</li>
+      <li><b>No se cae:</b> si Academy niega un permiso, el script avisa ⚠ y continúa sin ese componente.</li>
+    </ul>
+    <div class="num">04</div>
+  </div>
+  <div class="col-r">
+    <div class="term">
+      <div class="term-head"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="t">bash ejecutar.sh — fases 1 y 2</span></div>
+<pre><span class="b">============================================================</span>
+ <span class="b"> [1/5] Descubriendo recursos reales</span>
+<span class="b">============================================================</span>
+  <span class="ok">✔</span> Nodo EC2 detectado: i-0b1326d831404f1fc
+  <span class="ok">✔</span> LoadBalancer del frontend:
+    a3ee51a412e02473d9b82ef11c4eead1-727809422.us-east-1.elb.amazonaws.com
+  <span class="ok">✔</span> Nombre del CLB para CloudWatch: a3ee51a412e02473d9b82ef11c4eead1
+
+<span class="b">============================================================</span>
+ <span class="b"> [2/5] Notificaciones: topic SNS (opcional)</span>
+<span class="b">============================================================</span>
+  <span class="ok">✔</span> Topic SNS: arn:aws:sns:us-east-1:052812055460:ep02-alertas
+
+  <span class="wr">Para recibir un CORREO cuando salte una alarma, ingresa tu email.</span>
+  <span class="wr">(Enter para omitir. La suscripción hay que confirmarla.)</span>
+  Email (opcional): <span class="cm">mau.velasquezs@profesor.duoc.cl</span>
+  <span class="ok">✔</span> Suscripción enviada — <span class="wr">CONFÍRMALA desde tu correo</span> para recibir avisos.</pre>
+    </div>
+    <div class="cap">Si no confirmas la suscripción por email, las alarmas igual cambian de estado y se ven en consola.</div>
+  </div>
+  <div class="foot"><span>BLOQUE 06 · OBSERVABILIDAD — GUÍA PASO A PASO</span><span>04 / 15</span></div>
+</section>
+
+<!-- ══════════════════ LÁMINA 5 · EJECUTAR.SH (2) ══════════════════ -->
+<section class="sheet" id="l5">
+  <div class="col-l">
+    <div class="blue-rect"></div>
+    <div class="kicker">Paso 1 · bash ejecutar.sh</div>
+    <h1>Cuatro centinelas vigilando el sistema</h1>
+    <p class="intro">Publica la primera métrica y crea las 4 alarmas: 2 personalizadas
+    (miden TU microservicio) y 2 automáticas (las publica AWS por ti).</p>
+    <ul class="bullets">
+      <li><b>ep02-backend-salud:</b> SaludBackend &lt; 1 → el /actuator/health dejó de responder.</li>
+      <li><b>ep02-backend-pods:</b> PodsActivos &lt; 1 → quedan 0 pods Ready del backend.</li>
+      <li><b>Automáticas:</b> CPU del nodo ≥ 60% por 2 min y 5XX del balanceador ≥ 5/min.</li>
+      <li><b>Cierre:</b> tabla de estado inicial y reporte guardado en <b>reports/bloque06-*.md</b>.</li>
+    </ul>
+    <div class="num">05</div>
+  </div>
+  <div class="col-r">
+    <div class="term">
+      <div class="term-head"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="t">bash ejecutar.sh — fases 3 a 5</span></div>
+<pre><span class="b"> [3/5]</span> Publicando la métrica personalizada por primera vez
+  <span class="ok">✔</span> put-metric-data PodsActivos=1 publicado
+  <span class="ok">✔</span> put-metric-data SaludBackend=1 publicado
+
+<span class="b"> [4/5]</span> Creando alarmas en CloudWatch
+  <span class="ok">✔</span> Alarma creada/actualizada: ep02-backend-salud
+  <span class="ok">✔</span> Alarma creada/actualizada: ep02-backend-pods
+  <span class="ok">✔</span> Alarma creada/actualizada: ep02-cpu-nodo-alta-04f1fc
+  <span class="ok">✔</span> Alarma creada/actualizada: ep02-elb-5xx
+
+<span class="b"> [5/5]</span> Estado inicial de las alarmas
+  <span class="b">ALARM NAME</span>                   <span class="b">STATE</span>   <span class="b">METRIC</span>
+  ep02-backend-salud           OK      SaludBackend
+  ep02-backend-pods            OK      PodsActivos
+  ep02-cpu-nodo-alta-04f1fc    OK      CPUUtilization
+  ep02-elb-5xx                 OK      HTTPCode_ELB_5XX
+
+  <span class="ok">✔</span> Reporte guardado en: reports/bloque06-20261117-1030.md
+
+<span class="ok">Entorno listo. Continúa con la guía:</span>
+  <span class="dm">bash demo-1-auto-reparacion.sh   bash demo-2-prueba-carga.sh
+  bash demo-3-observatorio.sh</span></pre>
+    </div>
+    <div class="cap">Si una alarma quedó en INSUFFICIENT_DATA, ejecuta bash push-metrica.sh y se resuelve.</div>
+  </div>
+  <div class="foot"><span>BLOQUE 06 · OBSERVABILIDAD — GUÍA PASO A PASO</span><span>05 / 15</span></div>
+</section>
+
+<!-- ══════════════════ LÁMINA 6 · QUÉ ESPERAR TRAS EJECUTAR ══════════════════ -->
+<section class="sheet" id="l6">
+  <div class="col-l">
+    <div class="blue-rect"></div>
+    <div class="kicker">Paso 1 · Resultado esperado</div>
+    <h1>¿Y qué debe pasar al terminar?</h1>
+    <p class="intro">Las alarmas quedan creadas y activas. Su primer estado puede ser
+    OK o INSUFFICIENT_DATA; ambos son normales. El dashboard reúne todo en una vista.</p>
+    <ul class="bullets">
+      <li><b>INSUFFICIENT_DATA no es error:</b> significa que esa métrica aún no tiene datos → <b>push-metrica.sh</b>.</li>
+      <li><b>Evidencia:</b> guarda reports/bloque06-*.md con los recursos reales detectados.</li>
+      <li><b>Dashboard:</b> crear-dashboard.sh arma <b>ep02-observabilidad</b>: métricas + alarmas + CPU + 5XX en un solo panel.</li>
+      <li><b>Consola AWS:</b> CloudWatch → Alarms, y Metrics → Custom namespaces → <b>Ep02/Microservicio</b>.</li>
+    </ul>
+    <div class="num">06</div>
+  </div>
+  <div class="col-r">
+    <div class="term">
+      <div class="term-head"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="t">consola AWS — CloudWatch</span></div>
+<pre><span class="cm">$ bash crear-dashboard.sh</span>
+  === Validando credenciales AWS... ===
+  <span class="ok">✔</span> Dashboard <span class="hl">ep02-observabilidad</span> creado en CloudWatch
+
+<span class="dm">— CloudWatch → Alarms (cómo puede verse al inicio) —</span>
+  <span class="b">NAME</span>                     <span class="b">STATE</span>                <span class="b">MOTIVO</span>
+  ep02-backend-salud       <span class="wr">INSUFFICIENT_DATA</span>    aún sin datos suficientes
+  ep02-backend-pods        <span class="ok">OK</span>                   dentro del umbral
+  ep02-cpu-nodo-alta-…     <span class="ok">OK</span>                   CPU del nodo baja
+  ep02-elb-5xx             <span class="ok">OK</span>                   sin errores 5XX
+
+<span class="dm">— CloudWatch → Metrics → Custom namespaces —</span>
+  <span class="hl">Ep02/Microservicio</span>
+     SaludBackend = 1.0   <span class="dm">(el backend responde)</span>
+     PodsActivos  = 1     <span class="dm">(1 pod Ready)</span>
+
+<span class="dm">— CloudWatch → Dashboards —</span>
+  ep02-observabilidad: widgets de métrica, alarmas, CPU del
+  nodo y errores 5XX del LoadBalancer</pre>
+    </div>
+    <div class="cap">Desde aquí en adelante, cada falla y cada pico de carga que provoques debería verse reflejado aquí.</div>
+  </div>
+  <div class="foot"><span>BLOQUE 06 · OBSERVABILIDAD — GUÍA PASO A PASO</span><span>06 / 15</span></div>
+</section>
+
+<!-- ══════════════════ LÁMINA 7 · PUSH-METRICA ══════════════════ -->
+<section class="sheet" id="l7">
+  <div class="col-l">
+    <div class="blue-rect"></div>
+    <div class="kicker">Paso 2 · bash push-metrica.sh</div>
+    <h1>Tu microservicio, como métrica propia en CloudWatch</h1>
+    <p class="intro">Mide el estado real del backend y lo publica a mano: así existe
+    una métrica que AWS no crea por ti y sobre la cual tus alarmas personalizadas
+    pueden dispararse.</p>
+    <ul class="bullets">
+      <li><b>PodsActivos:</b> cuenta pods en Running con Ready=True (consulta JSON + jq).</li>
+      <li><b>SaludBackend:</b> 1 si /actuator/health responde dentro del pod; 0 si no.</li>
+      <li><b>Push manual:</b> aws cloudwatch put-metric-data → namespace <b>Ep02/Microservicio</b>.</li>
+      <li><b>Diferencia clave:</b> EC2 y ELB publican solos (automáticas); esta la empujas tú cuando quieres.</li>
+    </ul>
+    <div class="num">07</div>
+  </div>
+  <div class="col-r">
+    <div class="term">
+      <div class="term-head"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="t">bash push-metrica.sh</span></div>
+<pre><span class="cm">$ bash push-metrica.sh</span>
+<span class="b">[10:22:41]</span> Estado medido del microservicio ep02-backend:
+  <span class="ok">✔</span> PodsActivos  = 1
+  <span class="ok">✔</span> SaludBackend = 1 (UP)
+<span class="b">[10:22:43]</span> Publicando en CloudWatch namespace 'Ep02/Microservicio'...
+  <span class="ok">✔</span> put-metric-data PodsActivos=1 publicado
+  <span class="ok">✔</span> put-metric-data SaludBackend=1 publicado
+
+<span class="b">[10:22:43]</span> 🔎 Para verlas: Consola AWS → CloudWatch → Metrics
+   → All metrics → Custom namespaces → Ep02/Microservicio
+
+<span class="dm">— ¿Y si el backend está caído? La misma métrica lo delata: —</span>
+<span class="b">[10:31:07]</span> Estado medido del microservicio ep02-backend:
+  <span class="fa">✘</span> PodsActivos  = 0
+  <span class="fa">✘</span> SaludBackend = 0 (DOWN)
+  <span class="ok">✔</span> put-metric-data SaludBackend=0 publicado   <span class="dm">← alarma salta aquí</span></pre>
+    </div>
+    <div class="cap">El valor 0 publicado durante una falla real es lo que dispara ep02-backend-salud (umbral &lt; 1).</div>
+  </div>
+  <div class="foot"><span>BLOQUE 06 · OBSERVABILIDAD — GUÍA PASO A PASO</span><span>07 / 15</span></div>
+</section>
+
+<!-- ══════════════════ LÁMINA 8 · DEMO 1 (PREPARACIÓN) ══════════════════ -->
+<section class="sheet" id="l8">
+  <div class="col-l">
+    <div class="blue-rect"></div>
+    <div class="kicker">Paso 3 · bash demo-1-auto-reparacion.sh</div>
+    <h1>Provoca el desastre… a propósito</h1>
+    <p class="intro">La demo borra 1 pod del backend y 1 del frontend para ver cómo
+    Kubernetes los repone solo: reconciliación del estado deseado.</p>
+    <ul class="bullets">
+      <li><b>Escena 0:</b> chequeo de salud ANTES del desastre + publicación de la métrica.</li>
+      <li><b>Tú decides el momento:</b> el script pausa con "▶ Presiona ENTER" antes de borrar nada.</li>
+      <li><b>La idea:</b> ReplicaSet = promesa de N réplicas; borrar un pod activa el bucle de reconciliación.</li>
+      <li><b>En producción pasa igual:</b> un nodo muere y el controlador recoloca los pods, sin humanos.</li>
+    </ul>
+    <div class="num">08</div>
+  </div>
+  <div class="col-r">
+    <div class="term">
+      <div class="term-head"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="t">bash demo-1-auto-reparacion.sh — escena 0</span></div>
+<pre><span class="ps">━━━ ESCENA 0 — Verificar que todo está sano ANTES del desastre ━━━</span>
+NAME                            READY   STATUS    NODE
+ep02-backend-6865b9c8cd-6vkv9    1/1     Running   ip-10-0-1-23
+ep02-frontend-657568f745-chbzn   1/1     Running   ip-10-0-1-23
+ep02-frontend-657568f745-jdjzw   1/1     Running   ip-10-0-1-23
+  <span class="ok">✔</span> PodsActivos=1 publicado · SaludBackend=1 publicado
+
+<span class="cp">🔎 CONCEPTO:</span> ReplicaSet = promesa de N réplicas. Borrar un pod
+   NO es un error: es un evento que Kubernetes atiende solo.
+   En producción esto pasa igual cuando un nodo muere.
+
+<span class="ps">▶ Presiona ENTER para provocar el desastre</span>
+  <span class="dm">(borrar 1 pod del backend y 1 del frontend)...</span>
+
+<span class="dm">— Al presionar ENTER comienza la falla. No detengas el script:
+   su trabajo es justamente observarte la recuperación. —</span></pre>
+    </div>
+    <div class="cap">Momento ideal para tener la demo-3 corriendo en otra terminal y mirar CloudWatch.</div>
+  </div>
+  <div class="foot"><span>BLOQUE 06 · OBSERVABILIDAD — GUÍA PASO A PASO</span><span>08 / 15</span></div>
+</section>
+
+<!-- ══════════════════ LÁMINA 9 · DEMO 1 (TIMELINE) ══════════════════ -->
+<section class="sheet" id="l9">
+  <div class="col-l">
+    <div class="blue-rect"></div>
+    <div class="kicker">Paso 3 · demo-1 en vivo</div>
+    <h1>El timeline: falla → reconstrucción, segundo a segundo</h1>
+    <p class="intro">Durante ~1–2 minutos verás una línea T+…s con el estado de cada
+    pod y el valor de la salud publicada. Cada muestra se guarda para tu informe.</p>
+    <ul class="bullets">
+      <li><b>Fases visibles:</b> Terminating → (ReplicaSet detecta el faltante) → ContainerCreating → Ready.</li>
+      <li><b>Cuidado con el truco:</b> un pod Terminating sigue mostrando 1/1; el script cuenta solo pods realmente Ready.</li>
+      <li><b>Salud en tiempo real:</b> mientras no haya pod listo, publica SaludBackend=0 → CloudWatch lo registra.</li>
+      <li><b>Evidencia:</b> todo queda en reports/demo1-timeline-*.md.</li>
+    </ul>
+    <div class="num">09</div>
+  </div>
+  <div class="col-r">
+    <div class="term">
+      <div class="term-head"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="t">demo-1 — escenas 1 y 2</span></div>
+<pre><span class="ps">━━━ ESCENA 1 — Borrar pods (simular falla) ━━━</span>
+<span class="b">[10:24:02]</span> Eliminando pod del backend:
+           ep02-backend-6865b9c8cd-6vkv9
+<span class="b">[10:24:02]</span> Eliminando pod del frontend:
+           ep02-frontend-657568f745-chbzn
+  <span class="ok">✔</span> Desastre provocado en T+0s.
+    <span class="hl">Mira cómo el sistema reacciona solo...</span>
+
+<span class="ps">━━━ ESCENA 2 — Observar la reconstrucción (timeline en vivo) ━━━</span>
+<span class="b">T+5s</span>   backend: 6vkv9 <span class="fa">0/1</span> Terminating   salud=<span class="fa">0</span>
+<span class="b">T+10s</span>  frontend: chbzn <span class="fa">0/1</span> Terminating   salud=<span class="fa">0</span>
+<span class="b">T+20s</span>  frontend: 9wq2k <span class="ok">1/1</span> Running        salud=<span class="fa">0</span>
+<span class="b">T+36s</span>  backend: xk2p7 <span class="wr">0/1</span> Running         salud=<span class="fa">0</span>
+<span class="b">T+51s</span>  backend: xk2p7 <span class="wr">0/1</span> Running         salud=<span class="fa">0</span>
+<span class="dm">        (el backend aún no pasa su readinessProbe)</span>
+<span class="b">T+67s</span>  backend: xk2p7 <span class="ok">1/1</span> Running         salud=<span class="ok">1</span></pre>
+    </div>
+    <div class="cap">El 0/1 del backend entre T+36 y T+51 no es una falla: es el initialDelaySeconds: 50 de su readinessProbe.</div>
+  </div>
+  <div class="foot"><span>BLOQUE 06 · OBSERVABILIDAD — GUÍA PASO A PASO</span><span>09 / 15</span></div>
+</section>
+
+<!-- ══════════════════ LÁMINA 10 · DEMO 1 (RESULTADO) ══════════════════ -->
+<section class="sheet" id="l10">
+  <div class="col-l">
+    <div class="blue-rect"></div>
+    <div class="kicker">Paso 3 · demo-1 · resultado esperado</div>
+    <h1>Recuperación medida y alarmas en ALARM</h1>
+    <p class="intro">Lo esperado: frontend recuperado en ~5–20 s; backend en ~60–90 s.
+    Las alarmas personalizadas entran en ALARM 1–2 min después del desastre.</p>
+    <ul class="bullets">
+      <li><b>Recuperado de verdad:</b> pod original eliminado + nuevo pod Ready + health UP (no cuenta el Terminating residual).</li>
+      <li><b>Alarmas:</b> ep02-backend-salud y ep02-backend-pods → ALARM; si confirmaste el email, ya llegó el aviso.</li>
+      <li><b>La moraleja:</b> nadie corrió kubectl apply — es self-healing; los eventos del namespace lo cuentan.</li>
+      <li><b>Evidencia:</b> timeline + resumen con el tiempo de recuperación en reports/.</li>
+    </ul>
+    <div class="num">10</div>
+  </div>
+  <div class="col-r">
+    <div class="term">
+      <div class="term-head"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="t">demo-1 — escena 3 y cierre</span></div>
+<pre>  <span class="ok">✔</span> FRONTEND recuperado (2/2 Ready) en <span class="hl">T+20s</span>
+  <span class="ok">✔</span> BACKEND recuperado (pod original eliminado,
+    nuevo Ready y health UP) en <span class="hl">T+67s</span>
+
+<span class="ps">━━━ ESCENA 3 — La evidencia: eventos y alarmas ━━━</span>
+EVENTOS (últimos del desastre):
+  Scheduled · Pulling · Created · Started · ...
+
+<span class="cp">🔎 Nadie ejecutó kubectl apply ni creó pods a mano.</span>
+<span class="cp">   El ReplicaSet NOTÓ que faltaba una réplica y la recolocó.</span>
+
+  <span class="b">ALARM NAME</span>          <span class="b">STATE</span>    <span class="b">MOTIVO</span>
+  ep02-backend-salud  <span class="fa">ALARM</span>    El backend midió salud=0…
+  ep02-backend-pods   <span class="fa">ALARM</span>    menos pods Ready que el mínimo…
+
+<span class="ok">DEMO 1 COMPLETADA — recuperación en T+67s</span>
+<span class="dm">📝 Para tu informe: registra el tiempo de recuperación y explica
+   por qué el backend tarda más que el frontend.</span></pre>
+    </div>
+    <div class="cap">Las alarmas volverán solas a OK unos minutos después de la recuperación: ese retorno también es parte del ciclo.</div>
+  </div>
+  <div class="foot"><span>BLOQUE 06 · OBSERVABILIDAD — GUÍA PASO A PASO</span><span>10 / 15</span></div>
+</section>
+
+<!-- ══════════════════ LÁMINA 11 · DEMO 2 (PREPARACIÓN) ══════════════════ -->
+<section class="sheet" id="l11">
+  <div class="col-l">
+    <div class="blue-rect"></div>
+    <div class="kicker">Paso 4 · bash demo-2-prueba-carga.sh</div>
+    <h1>Prepara la carga: 5 minutos, 8 procesos</h1>
+    <p class="intro">El script arma la prueba: ubica la URL pública del frontend, toma
+    una línea base y te pide ENTER antes de soltar 8 procesos de peticiones HTTP
+    reales durante 5 minutos.</p>
+    <ul class="bullets">
+      <li><b>URL objetivo:</b> http://&lt;LoadBalancer&gt;/ep02/actuator/health (nginx hace proxy al backend :8080).</li>
+      <li><b>Línea base:</b> estado del HPA, CPU por pod y CPU del nodo ANTES de la carga, para comparar después.</li>
+      <li><b>Personalizable:</b> DURACION=180 WORKERS=6 bash demo-2-prueba-carga.sh.</li>
+      <li><b>Acompaña en vivo:</b> en otra terminal, kubectl get hpa -n ep02 -w.</li>
+    </ul>
+    <div class="num">11</div>
+  </div>
+  <div class="col-r">
+    <div class="term">
+      <div class="term-head"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="t">demo-2 — pasos 1 y 2</span></div>
+<pre><span class="ps">━━━ PASO 1 — Ubicar la URL pública del frontend ━━━</span>
+  <span class="ok">✔</span> URL de carga:
+    http://a3ee51…elb.amazonaws.com/ep02/actuator/health
+<span class="b">[10:31:10]</span> Verificando conectividad... <span class="ok">(HTTP 200)</span>
+<span class="dm">   (si respondiera 000/502, espera a que el backend esté Ready)</span>
+
+<span class="ps">━━━ PASO 2 — Línea base (antes de la carga) ━━━</span>
+NAME               TARGETS       MINPODS   MAXPODS   REPLICAS
+ep02-backend-hpa   cpu: 12%/70%     1         10        1
+ep02-frontend-hpa  cpu: 4%/60%      2         10        2
+  <span class="ok">✔</span> métrica base publicada (push-metrica)
+
+<span class="cp">🔎 CONCEPTO: TARGETS = %CPU promedio de los pods vs objetivo
+   del HPA. REPLICAS es lo que el HPA decide.</span>
+
+  <span class="wr">Se generarán 8 procesos de peticiones HTTP durante 300 segundos.</span>
+<span class="ps">▶ Presiona ENTER para COMENZAR LA CARGA...</span></pre>
+    </div>
+    <div class="cap">Anota la línea base (réplicas y TARGETS): es tu referencia para el informe.</div>
+  </div>
+  <div class="foot"><span>BLOQUE 06 · OBSERVABILIDAD — GUÍA PASO A PASO</span><span>11 / 15</span></div>
+</section>
+
+<!-- ══════════════════ LÁMINA 12 · DEMO 2 (CARGA) ══════════════════ -->
+<section class="sheet" id="l12">
+  <div class="col-l">
+    <div class="blue-rect"></div>
+    <div class="kicker">Paso 4 · demo-2 en vivo</div>
+    <h1>Durante la carga: TARGETS sube, réplicas crecen</h1>
+    <p class="intro">Cada 15 s el monitor imprime la cuenta regresiva y el estado de los
+    HPA. Lo esperado: TARGETS hacia el objetivo y réplicas 1 → 2 → 3 (hasta 10).</p>
+    <ul class="bullets">
+      <li><b>Escala horizontal:</b> el HPA agrega pods, no agranda el nodo.</li>
+      <li><b>Si saturas:</b> el balanceador acumula 5XX (alarma ep02-elb-5xx) y la CPU del nodo sube (ep02-cpu-nodo-alta-*, umbral didáctico 60%).</li>
+      <li><b>Todo queda registrado:</b> cada muestra va a reports/demo2-carga-*.md.</li>
+    </ul>
+    <div class="num">12</div>
+  </div>
+  <div class="col-r">
+    <div class="term">
+      <div class="term-head"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="t">demo-2 — paso 3 (carga en vivo)</span></div>
+<pre><span class="ps">━━━ PASO 3 — Generando carga (en vivo) ━━━</span>
+<span class="b">T-285s restantes</span>  backend-hpa[cpu: <span class="ok">45%/70%</span> | répl: 1]
+                  cpu-pods: be-6vkv9:630m
+<span class="b">T-270s restantes</span>  backend-hpa[cpu: <span class="wr">71%/70%</span> | répl: 2]
+                  cpu-pods: be-6vkv9:990m  be-xk2p7:910m
+<span class="b">T-240s restantes</span>  backend-hpa[cpu: <span class="wr">88%/70%</span> | répl: 3]
+<span class="b">T-150s restantes</span>  backend-hpa[cpu: <span class="wr">74%/70%</span> | répl: 4]
+                  frontend-hpa[répl: 2]
+<span class="b">T-60s restantes</span>   backend-hpa[cpu: 69%/70% | répl: 4]
+<span class="dm">   (se repite cada 15 s hasta terminar la ventana de carga)</span>
+
+<span class="dm">En otra terminal, en paralelo:
+  kubectl get hpa -n ep02 -w
+  … REPLICAS pasando de 1 → 2 → 3 → 4</span></pre>
+    </div>
+    <div class="cap">En el nodo t3.large la CPU se reparte entre todos: la alarma del nodo puede no saltar; reportar la tendencia también es una observación válida.</div>
+  </div>
+  <div class="foot"><span>BLOQUE 06 · OBSERVABILIDAD — GUÍA PASO A PASO</span><span>12 / 15</span></div>
+</section>
+
+<!-- ══════════════════ LÁMINA 13 · DEMO 2 (RESULTADO) ══════════════════ -->
+<section class="sheet" id="l13">
+  <div class="col-l">
+    <div class="blue-rect"></div>
+    <div class="kicker">Paso 4 · demo-2 · resultado esperado</div>
+    <h1>Números finales y el arte de bajar despacio</h1>
+    <p class="intro">Al terminar la ventana de carga, el script muestra el conteo de
+    peticiones, el HPA final, la CPU y si las alarmas de nodo o balanceador saltaron.</p>
+    <ul class="bullets">
+      <li><b>Reporte:</b> peticiones totales, 200 OK y errores/timeouts, con HPA final en reports/demo2-carga-*.md.</li>
+      <li><b>Al bajar la carga:</b> REPLICAS no retrocede de inmediato — periodo de estabilización de ~5 min para no oscilar.</li>
+      <li><b>ESPERAR_BAJADA=1:</b> quédate a presenciar el downsizing (hasta 15 min) hasta volver al mínimo.</li>
+      <li><b>Para el informe:</b> compara línea base vs pico y explica pods (HPA) vs nodo.</li>
+    </ul>
+    <div class="num">13</div>
+  </div>
+  <div class="col-r">
+    <div class="term">
+      <div class="term-head"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="t">demo-2 — pasos 4 y 5</span></div>
+<pre><span class="ps">━━━ PASO 4 — Resultados de la carga ━━━</span>
+  <span class="ok">✔</span> Peticiones totales: <span class="hl">4.231</span> | 200 OK: <span class="ok">4.198</span>
+                       | errores/timeouts: <span class="fa">33</span>
+  Estado del HPA al terminar:
+    ep02-backend-hpa   cpu: 76%/70%   répl: <span class="hl">4</span>
+    ep02-frontend-hpa  cpu: 22%/60%   répl: 2
+  CPU del nodo: 61%  <span class="dm">(¿saltó ep02-cpu-nodo-alta-04f1fc?)</span>
+
+<span class="cp">🔎 Al bajar la carga, el HPA NO baja réplicas de inmediato:
+   espera un periodo de estabilización (~5 min) para no
+   oscilar (flapping). Escalar rápido, reducir despacio.</span>
+
+<span class="ps">━━━ PASO 5 — ¿Saltaron las alarmas? ━━━</span>
+  ep02-cpu-nodo-alta-04f1fc  <span class="fa">ALARM</span>  CPU promedio ≥ 60% por 2 min
+  ep02-elb-5xx               <span class="ok">OK</span>     <span class="dm">(si saturas el backend → ALARM)</span></pre>
+    </div>
+    <div class="cap">Ejecutarla con ESPERAR_BAJADA=1 te deja viendo cómo REPLICAS vuelve de 4 → 1 tras ~5 min.</div>
+  </div>
+  <div class="foot"><span>BLOQUE 06 · OBSERVABILIDAD — GUÍA PASO A PASO</span><span>13 / 15</span></div>
+</section>
+
+<!-- ══════════════════ LÁMINA 14 · DEMO 3 ══════════════════ -->
+<section class="sheet" id="l14">
+  <div class="col-l">
+    <div class="blue-rect"></div>
+    <div class="kicker">Paso 5 · bash demo-3-observatorio.sh</div>
+    <h1>La sala de control, en vivo y siempre encendida</h1>
+    <p class="intro">Se deja corriendo en otra terminal y refresca cada 15 s el estado
+    de todas las alarmas ep02-* y el histórico de SaludBackend: verás el ciclo
+    completo OK → ALARM → OK.</p>
+    <ul class="bullets">
+      <li><b>Ciclo de vida de una alarma:</b> INSUFFICIENT_DATA (sin datos) → OK (todo bien) → ALARM (violada; SNS notifica).</li>
+      <li><b>Histórico:</b> SaludBackend de los últimos 15 min, promedio por minuto: 1.0 = OK, 0.0 = caído.</li>
+      <li><b>Ctrl+C para salir.</b> Compáralo con el dashboard ep02-observabilidad en la consola AWS.</li>
+    </ul>
+    <div class="num">14</div>
+  </div>
+  <div class="col-r">
+    <div class="term">
+      <div class="term-head"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="t">bash demo-3-observatorio.sh</span></div>
+<pre><span class="b">============================================================</span>
+  <span class="b">OBSERVATORIO ep02 — Ctrl+C para salir</span>
+<span class="b">============================================================</span>
+
+<span class="b">[10:40:12]</span> Estado de alarmas ep02-*
+  <span class="b">NAME</span>                       <span class="b">STATE</span>     <span class="b">ACTUALIZADO</span>
+  ep02-backend-salud         <span class="fa">ALARM</span>     hace 2 min
+  ep02-backend-pods          <span class="fa">ALARM</span>     hace 2 min
+  ep02-cpu-nodo-alta-04f1fc  <span class="ok">OK</span>        hace 1 min
+  ep02-elb-5xx               <span class="ok">OK</span>        hace 1 min
+
+<span class="b">Histórico de SaludBackend</span> (últimos 15 min, por minuto)
+  10:26  1.0   10:31  1.0   10:36  <span class="fa">0.0</span>   10:40  <span class="ok">1.0</span>
+<span class="wr">Leyenda: 1.0 = salud OK | 0.0 = el microservicio dejó de responder</span>
+<span class="wr">Si una alarma está en ALARM y configuraste email en SNS,
+ya llegó el aviso.</span>
+
+<span class="dm">(a los ~5 min, tras recuperarse el backend:)</span>
+  ep02-backend-salud   <span class="ok">OK</span>   <span class="dm">← ciclo ALARM → OK completado</span></pre>
+    </div>
+    <div class="cap">Déjalo corriendo mientras haces las demos 1 y 2: es el "monitor de pared" del operador.</div>
+  </div>
+  <div class="foot"><span>BLOQUE 06 · OBSERVABILIDAD — GUÍA PASO A PASO</span><span>14 / 15</span></div>
+</section>
+
+<!-- ══════════════════ LÁMINA 15 · OPCIONAL + LIMPIEZA ══════════════════ -->
+<section class="sheet" id="l15">
+  <div class="col-l">
+    <div class="blue-rect"></div>
+    <div class="kicker">Paso 6 · opcional, limpieza e informe</div>
+    <h1>Service mesh si el nodo aguanta; siempre limpiar al final</h1>
+    <p class="intro">Istio+Kiali es la última actividad de la semana. Al terminar, limpia
+    lo creado y reúne tus evidencias para el informe.</p>
+    <ul class="bullets">
+      <li><b>Presupuesto:</b> Istio añade ~1.5–2 GB de RAM al nodo t3.large; si no aguanta, el README + demos 1–3 ya cubren los objetivos.</li>
+      <li><b>Kiali (puerto 20001):</b> Traffic Graph muestra quién habla con quién, tasas de error y rutas (Gateway + VirtualService).</li>
+      <li><b>Limpieza:</b> limpiar-bloque06.sh borra alarmas + SNS (pidiendo confirmación "s"); LIMPIAR=1 desinstala la malla.</li>
+      <li><b>Tu informe:</b> timelines, resúmenes y estados de alarmas en reports/, más los tiempos de recuperación.</li>
+    </ul>
+    <div class="num">15</div>
+  </div>
+  <div class="col-r">
+    <div class="term">
+      <div class="term-head"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="t">opcional + limpieza</span></div>
+<pre><span class="cm">$ bash opcional-istio-kiali.sh</span>        <span class="dm"># opcional, 10–15 min</span>
+  <span class="ok">✔</span> istiod + ingressgateway instalados (perfil demo)
+  <span class="ok">✔</span> Sidecar Envoy inyectado en ep02
+  <span class="ok">✔</span> Prometheus + Kiali instalados
+  <span class="ok">✔</span> Gateway + VirtualService creados
+
+<span class="cm">$ kubectl port-forward svc/kiali -n istio-system 20001:20001</span>
+  <span class="hl">→ http://localhost:20001</span>  <span class="dm">(Traffic Graph)</span>
+
+<span class="cm">$ bash limpiar-bloque06.sh</span>
+  <span class="wr">Se eliminarán las alarmas ep02-* y el topic SNS 'ep02-alertas'.</span>
+  <span class="ps">▶ ¿Continuar? (s/N):</span> s
+  <span class="ok">✔</span> Alarmas borradas · <span class="ok">✔</span> Topic SNS eliminado
+  <span class="dm">(la métrica Ep02/Microservicio expira sola en ~2 semanas)</span>
+
+<span class="dm">Evidencias reunidas en reports/:
+  bloque06-*.md · demo1-timeline-*.md · demo1-resumen-*.md
+  demo2-carga-*.md</span></pre>
+    </div>
+    <div class="cap">Limpieza general del laboratorio al cerrar la semana: ../aws-limpiar.sh, para no dejar recursos cobrables.</div>
+  </div>
+  <div class="foot"><span>BLOQUE 06 · OBSERVABILIDAD — GUÍA PASO A PASO</span><span>15 / 15</span></div>
+</section>
+
+</body>
+</html>
